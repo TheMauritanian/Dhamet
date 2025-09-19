@@ -1,0 +1,5080 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <title data-i18n="page_title">لعبة ظامت الموريتانية</title>
+
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="icon.png" />
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+  <script defer src="js/online.js"></script>
+  <script src="js/i18n.js"></script>
+
+  <meta name="description" data-i18n="meta_description"
+    content="العب لعبة ظامت الموريتانية التقليدية أونلاين مجانًا ضد الكمبيوتر أو أصدقائك، مع شرح القواعد والتحديات." />
+  <meta name="keywords" data-i18n="meta_keywords"
+    content="لعبة ظامت, الداما الموريتانية, الضامة الموريتانية, ألعاب صحراوية, ألعاب بدوية ,الظامة الموريتانية, ألعاب استراتيجية, ألعاب موريتانية, ألعاب تقليدية" />
+  <script type="application/ld+json" id="schema-data">
+      {
+        "@context": "https://schema.org",
+        "@type": "لعبة تقليدية",
+        "name": "لعبة ظامت الموريتانية",
+        "genre": "لعبة استراتيجية",
+        "applicationCategory": "Game",
+        "operatingSystem": "Web",
+        "url": "https://example.com",
+        "description": "العب لعبة ظامت الموريتانية التقليدية أونلاين مجانًا ضد الكمبيوتر أو ضد أصدقائك."
+      }
+    </script>
+</head>
+
+<body>
+  <div class="app">
+    <!-- BOARD -->
+    <section class="board-wrap" aria-label="Zamat board">
+      <canvas id="board" width="900" height="900"></canvas>
+    </section>
+
+    <!-- SIDEBAR -->
+    <aside class="side">
+      <h2 class="game-title" data-i18n="game.title">لعبة ظامت الموريتانية</h2>
+      <div class="status-row">
+        <div id="statusText" class="status" data-i18n="status.default">
+          ...
+        </div>
+        <div class="lang-select">
+          <label class="muted" for="langSel" data-i18n="ui.language">اللغة</label>
+          <select id="langSel" aria-label="Language">
+            <option value="ar">العربية</option>
+            <option value="en">English</option>
+            <option value="fr">Français</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="ui.stats">الإحصائيات</th>
+              <th id="pTopName" data-i18n="players.black">⚫ الأسود</th>
+              <th id="pBotName" data-i18n="players.white">⚪ الأبيض</th>
+
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-i18n="stats.left">القطع المتبقية</td>
+              <td id="topLeft">40</td>
+              <td id="botLeft">40</td>
+            </tr>
+            <tr>
+              <td data-i18n="stats.kings">الظائم(الملك)</td>
+              <td id="topKings">0</td>
+              <td id="botKings">0</td>
+            </tr>
+            <tr>
+              <td data-i18n="stats.captured">المأسورة</td>
+              <td id="topCaptured">0</td>
+              <td id="botCaptured">0</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="ai-state">
+        <span class="muted" data-i18n="ui.aiState">حالة الذكاء الاصطناعي:</span>
+        <span class="ai-chip">ONNX: <span id="onnxBadge" class="badge warn">🔄</span></span>
+        <span class="ai-chip">JSON: <span id="jsonBadge" class="badge warn">🔄</span></span>
+      </div>
+      <!-- Timer + End kill -->
+      <div class="timer-row">
+        <div class="clock">
+          <span class="muted">⏱</span>
+          <span id="killClock">00:00</span>
+        </div>
+        <button id="btnEndKill" class="btn ok" disabled data-i18n="buttons.endKill">
+          إنهاء الأسر
+        </button>
+      </div>
+      <!-- Buttons grid: 8 buttons -->
+      <div class="btn-grid" role="group" aria-label="Controls">
+        <button id="btnSoufla" class="btn" data-i18n="buttons.soufla">
+          سوفلة
+        </button>
+        <button id="btnUndo" class="btn" data-i18n="buttons.undo">
+          تراجع
+        </button>
+
+        <button id="btnHint" class="btn" data-i18n="buttons.hint">
+          تلميح
+        </button>
+        <button id="btnRules" class="btn" data-i18n="buttons.rules">
+          تعليمات
+        </button>
+
+        <button id="btnSettings" class="btn" data-i18n="buttons.settings">
+          الإعدادات
+        </button>
+        <button id="btnNew" class="btn danger" data-i18n="buttons.newGame">
+          لعبة جديدة
+        </button>
+
+        <button id="btnSave" class="btn" data-i18n="buttons.save">
+          حفظ لعبة
+        </button>
+        <button id="btnResume" class="btn" data-i18n="buttons.resume">
+          استئناف لعبة
+        </button>
+      </div>
+
+      <!-- Online play (isolated in online.js) -->
+      <div class="btn-grid">
+        <button id="btnOnline" class="btn block primary" data-i18n="buttons.pickOnline">
+          اختر لاعبًا متصلاً
+        </button>
+        <button id="btnEndOnline" class="btn block danger" style="display: none" data-i18n="buttons.endOnline">
+          إنهاء المباراة
+        </button>
+      </div>
+
+      <!-- Activity log -->
+      <div id="log" class="log" aria-live="polite" aria-label="Activity log"></div>
+      <button id="btnExportHuman" class="btn ghost" data-i18n="buttons.exportHuman" title="تصدير نموذج JSON">
+        تصدير نموذج JSON
+      </button>
+    </aside>
+  </div>
+
+  <!-- Modal (single reusable) -->
+  <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" role="document">
+      <div class="modal-header">
+        <div class="modal-title" id="modalTitle">...</div>
+        <button class="modal-close" id="modalClose">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter">
+        <div class="row" id="modalFooterButtons"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script>
+    // ============================================================
+    // 0) Utilities, i18n, theming, storage, clock, log, modal
+    // ============================================================
+
+    const isRTL = () => document.documentElement.dir === "rtl";
+    const qs = (sel, root = document) => root.querySelector(sel);
+    const qsa = (sel, root = document) =>
+      Array.from(root.querySelectorAll(sel));
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const nowHHMMSS = () => {
+      const d = new Date();
+      return d.toLocaleTimeString("en-GB", { hour12: false });
+    };
+    const toast = (msg) => {
+      const box = qs("#toasts");
+      const t = document.createElement("div");
+      t.className = "toast";
+      t.textContent = msg;
+      box.appendChild(t);
+      setTimeout(() => {
+        t.remove();
+      }, 4200);
+    };
+    const logLine = (txt) => {
+      const log = qs("#log");
+      const el = document.createElement("div");
+      el.className = "log-item";
+      el.innerHTML = `<span class="time">${nowHHMMSS()}</span> ${txt}`;
+      log.prepend(el);
+      log.scrollTop = 0;
+    };
+
+    const Modal = {
+      open({ title, body, buttons = [], onClose = null }) {
+        const backdrop = qs("#modalBackdrop");
+        qs("#modalTitle").textContent = title || "";
+        const bodyEl = qs("#modalBody");
+        bodyEl.innerHTML = "";
+        typeof body === "string"
+          ? bodyEl.insertAdjacentHTML("afterbegin", body)
+          : body && bodyEl.append(body);
+        const footer = qs("#modalFooterButtons");
+        footer.innerHTML = "";
+        buttons.forEach((btn) => {
+          const b = document.createElement("button");
+          b.className = "btn " + (btn.className || "");
+          b.textContent = btn.label;
+          b.addEventListener("click", () => {
+            if (btn.onClick) btn.onClick();
+          });
+          footer.appendChild(b);
+        });
+        backdrop.style.display = "flex";
+        backdrop.setAttribute("aria-hidden", "false");
+        this._onClose = onClose;
+      },
+      close() {
+        const backdrop = qs("#modalBackdrop");
+        const focused = backdrop.querySelector(":focus");
+        if (focused) focused.blur();
+
+        backdrop.style.display = "none";
+        backdrop.setAttribute("aria-hidden", "true");
+        if (this._onClose) this._onClose();
+        this._onClose = null;
+      },
+
+      _onClose: null,
+    };
+    qs("#modalClose").addEventListener("click", () => Modal.close());
+    qs("#modalBackdrop").addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) Modal.close();
+    });
+
+    const AppPref = {
+      getLang() {
+        const url = new URL(location.href);
+        const q = url.searchParams.get("lang");
+        return q || localStorage.getItem("zamat.lang") || "ar";
+      },
+      setLang(lang) {
+        localStorage.setItem("zamat.lang", lang);
+      },
+      getTheme() {
+        return localStorage.getItem("zamat.theme") || "light";
+      },
+      setTheme(th) {
+        localStorage.setItem("zamat.theme", th);
+      },
+    };
+
+    function applyTheme(theme) {
+      const root = document.documentElement;
+      if (theme === "dark") root.classList.add("dark");
+      else root.classList.remove("dark");
+    }
+
+    let t = (key) => key;
+    function initI18n() {
+      const langSel = qs("#langSel");
+      const pref = AppPref.getLang();
+      langSel.value = pref;
+      applyLanguage(pref);
+      langSel.addEventListener("change", () => {
+        applyLanguage(langSel.value);
+      });
+    }
+    function applyLanguage(lang) {
+      const tr =
+        (window.translations && window.translations[lang]) ||
+        (window.translations && window.translations.ar) ||
+        {};
+      const fallback = (window.translations && window.translations.ar) || {};
+      t = (key) => {
+        const segs = String(key).split(".");
+        let cur = tr,
+          curFb = fallback;
+        for (const s of segs) {
+          cur = cur && typeof cur === "object" ? cur[s] : undefined;
+          curFb = curFb && typeof curFb === "object" ? curFb[s] : undefined;
+        }
+        return typeof cur === "string"
+          ? cur
+          : typeof curFb === "string"
+            ? curFb
+            : key;
+      };
+      document.documentElement.lang = lang;
+
+      document.documentElement.classList.remove("lang-ar", "lang-en", "lang-fr");
+      document.documentElement.classList.add(`lang-${lang}`);
+      document.documentElement.dir = "ltr";
+
+      qsa("[data-i18n]").forEach((el) => {
+        el.textContent = t(el.getAttribute("data-i18n"));
+      });
+      if (!Game.names.top)
+        qs("#pTopName").textContent = t("players.black") || "⚫ الأسود";
+      if (!Game.names.bot)
+        qs("#pBotName").textContent = t("players.white") || "⚪ الأبيض";
+
+      UI.updateStatus();
+
+      AppPref.setLang(lang);
+    }
+    function sideOfColor(color) {
+      return color === "white" ? BOT : TOP;
+    }
+
+    function sideLabel(side) {
+      return side === BOT
+        ? t("players.white") || "الأبيض"
+        : t("players.black") || "الأسود";
+    }
+
+    // ============================================================
+    // 1) Game constants and geometry (9x9 points + allowed diagonals)
+    // ============================================================
+
+    const BOARD_N = 9;
+    const TOP = +1;
+    const BOT = -1;
+
+    const MAN = 1;
+    const KING = 2;
+
+    const N_CELLS = BOARD_N * BOARD_N;
+    const ACTION_ENDCHAIN = N_CELLS * N_CELLS;
+    const N_ACTIONS = ACTION_ENDCHAIN + 1;
+    const HUMAN_MODEL_PATH = "models/human_model.json";
+    const HUMAN_WEIGHT = 7.5;
+    const HUMAN_LR = 0.02;
+    const HUMAN_DECAY = 0.0005;
+
+    const FO_TOP = [
+      [
+        [3, 5],
+        [4, 4],
+      ],
+      [
+        [5, 3],
+        [3, 5],
+      ],
+      [
+        [2, 6],
+        [4, 4],
+      ],
+      [
+        [4, 8],
+        [2, 6],
+      ],
+      [
+        [1, 7],
+        [3, 5],
+      ],
+      [
+        [4, 6],
+        [2, 6],
+      ],
+      [
+        [4, 4],
+        [4, 8],
+      ],
+      [
+        [2, 6],
+        [4, 4],
+      ],
+      [
+        [4, 3],
+        [4, 5],
+      ],
+      [
+        [5, 5],
+        [3, 5],
+      ],
+    ];
+    const FO_BOT = [
+      [
+        [5, 3],
+        [4, 4],
+      ],
+      [
+        [3, 5],
+        [5, 3],
+      ],
+      [
+        [6, 2],
+        [4, 4],
+      ],
+      [
+        [4, 0],
+        [6, 2],
+      ],
+      [
+        [7, 1],
+        [5, 3],
+      ],
+      [
+        [4, 2],
+        [6, 2],
+      ],
+      [
+        [4, 4],
+        [4, 0],
+      ],
+      [
+        [6, 2],
+        [4, 4],
+      ],
+      [
+        [4, 5],
+        [4, 3],
+      ],
+      [
+        [3, 3],
+        [5, 3],
+      ],
+    ];
+
+    const DIAG_A_SEGMENTS = [
+      [
+        [0, 2],
+        [2, 0],
+      ],
+      [
+        [0, 4],
+        [4, 0],
+      ],
+      [
+        [0, 6],
+        [6, 0],
+      ],
+      [
+        [0, 8],
+        [8, 0],
+      ],
+      [
+        [2, 8],
+        [8, 2],
+      ],
+      [
+        [4, 8],
+        [8, 4],
+      ],
+      [
+        [6, 8],
+        [8, 6],
+      ],
+    ];
+    const DIAG_B_SEGMENTS = [
+      [
+        [0, 6],
+        [2, 8],
+      ],
+      [
+        [0, 4],
+        [4, 8],
+      ],
+      [
+        [0, 2],
+        [6, 8],
+      ],
+      [
+        [0, 0],
+        [8, 8],
+      ],
+      [
+        [2, 0],
+        [8, 6],
+      ],
+      [
+        [4, 0],
+        [8, 4],
+      ],
+      [
+        [6, 0],
+        [8, 2],
+      ],
+    ];
+
+    function rcToIdx(r, c) {
+      return r * BOARD_N + c;
+    }
+    function idxToRC(idx) {
+      return [Math.floor(idx / BOARD_N), idx % BOARD_N];
+    }
+    function inside(r, c) {
+      return r >= 0 && r < BOARD_N && c >= 0 && c < BOARD_N;
+    }
+
+    function buildSegments(segList, dir) {
+      const lines = [];
+      for (const [a, b] of segList) {
+        const [r0, c0] = a,
+          [r1, c1] = b;
+        const dr = 1,
+          dc = dir === "A" ? -1 : +1;
+        const line = [];
+        let r = r0,
+          c = c0;
+        while (true) {
+          line.push([r, c]);
+          if (r === r1 && c === c1) break;
+          r += dr;
+          c += dc;
+        }
+        lines.push(line);
+      }
+      return lines;
+    }
+    const DIAG_A_LINES = buildSegments(DIAG_A_SEGMENTS, "A");
+    const DIAG_B_LINES = buildSegments(DIAG_B_SEGMENTS, "B");
+
+    const IS_IN_DIAG_A = new Array(BOARD_N)
+      .fill(0)
+      .map(() => new Array(BOARD_N).fill(false));
+    const IS_IN_DIAG_B = new Array(BOARD_N)
+      .fill(0)
+      .map(() => new Array(BOARD_N).fill(false));
+    for (const line of DIAG_A_LINES) {
+      for (const [r, c] of line) {
+        IS_IN_DIAG_A[r][c] = true;
+      }
+    }
+    for (const line of DIAG_B_LINES) {
+      for (const [r, c] of line) {
+        IS_IN_DIAG_B[r][c] = true;
+      }
+    }
+    const IS_WIDE = new Array(BOARD_N)
+      .fill(0)
+      .map(() => new Array(BOARD_N).fill(false));
+    for (let r = 0; r < BOARD_N; r++) {
+      for (let c = 0; c < BOARD_N; c++) {
+        IS_WIDE[r][c] = IS_IN_DIAG_A[r][c] || IS_IN_DIAG_B[r][c];
+      }
+    }
+    // --- Columns/regions masks for Mauritanian strategy
+    const COL0 = [];
+    const COL8 = [];
+    const MID_COLS = new Set([3, 4, 5]); // approximate middle columns
+
+    for (let r = 0; r < BOARD_N; r++) {
+      COL0.push(rcToIdx(r, 0));
+      COL8.push(rcToIdx(r, 8));
+    }
+    function isCol(idx, col) {
+      const [_, c] = idxToRC(idx);
+      return c === col;
+    }
+    function isMidCol(idx) {
+      const [_, c] = idxToRC(idx);
+      return MID_COLS.has(c);
+    }
+
+    const MASK_BACK_TOP = new Array(BOARD_N)
+      .fill(0)
+      .map(() => new Array(BOARD_N).fill(false));
+    const MASK_BACK_BOT = new Array(BOARD_N)
+      .fill(0)
+      .map(() => new Array(BOARD_N).fill(false));
+    const MASK_CORNERS = new Array(BOARD_N)
+      .fill(0)
+      .map(() => new Array(BOARD_N).fill(false));
+    const MASK_EYES = new Array(BOARD_N)
+      .fill(0)
+      .map(() => new Array(BOARD_N).fill(false));
+    const MASK_MIDBACK = new Array(BOARD_N)
+      .fill(0)
+      .map(() => new Array(BOARD_N).fill(false));
+    for (let c = 0; c < BOARD_N; c++) {
+      MASK_BACK_TOP[0][c] = true;
+      MASK_BACK_BOT[8][c] = true;
+    }
+    for (const [r, c] of [
+      [0, 0],
+      [0, 8],
+      [8, 0],
+      [8, 8],
+    ])
+      MASK_CORNERS[r][c] = true;
+    for (const [r, c] of [
+      [0, 2],
+      [0, 6],
+      [8, 2],
+      [8, 6],
+    ])
+      MASK_EYES[r][c] = true;
+    for (const [r, c] of [
+      [0, 4],
+      [8, 4],
+    ])
+      MASK_MIDBACK[r][c] = true;
+
+    const DIRS_ORTHO = [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ];
+    const DIRS_DIAG_A = [
+      [-1, 1],
+      [1, -1],
+    ];
+    const DIRS_DIAG_B = [
+      [-1, -1],
+      [1, 1],
+    ];
+
+    function isDirAllowedFrom(r, c, dr, dc) {
+      if (DIRS_ORTHO.some(([rr, cc]) => rr === dr && cc === dc)) return true;
+      if (
+        DIRS_DIAG_A.some(([rr, cc]) => rr === dr && cc === dc) &&
+        IS_IN_DIAG_A[r][c]
+      )
+        return true;
+      if (
+        DIRS_DIAG_B.some(([rr, cc]) => rr === dr && cc === dc) &&
+        IS_IN_DIAG_B[r][c]
+      )
+        return true;
+      return false;
+    }
+
+    // ============================================================
+    // 2) Game state, rules, soufla, forced opening, serialization
+    // ============================================================
+
+    const Game = {
+      board: new Array(BOARD_N).fill(0).map(() => new Array(BOARD_N).fill(0)),
+      player: TOP,
+      inChain: false,
+      chainPos: null,
+      lastMovedTo: null,
+      moveCount: 0,
+      gameOver: false,
+      winner: null,
+      terminationReason: null,
+      firstCaptureHintShown: false,
+      forcedEnabled: true,
+      forcedPly: 0,
+      forcedSeq: null,
+
+      awaitingPenalty: false,
+      souflaPending: null,
+      availableSouflaForHuman: null,
+
+      history: [],
+      lastTurnSnapshot: null,
+      lastMovedFrom: null,
+
+      settings: {
+        starter: "white",
+        thinkTimeMs: 0,
+        aiCaptureMode: "mandatory",
+        theme: "light",
+        longFx: true,
+        showCoords: false,
+        advanced: {
+          useHeuristic: true,
+          useMinimax: true,
+          useMCTS: true,
+
+          minimaxDepth: 4,
+          minimaxAtCriticalOnly: true,
+
+          mctsSimulations: 450,
+          mctsAtMidgameOnly: true,
+
+          boostCol0Attack: true,
+          lockCol8Defense: true,
+          avoidFightsOnCol8: true,
+
+          w_policy_onnx: 1.0,
+          w_policy_json: 2.0,
+          w_heur: 0.5,
+          w_minimax: 1,
+          w_mcts: 0.75,
+
+          timeBoostCriticalMs: 1500,
+          timeCapMs: 6000
+        }
+
+
+      },
+
+      names: {
+        top: "",
+        bot: "",
+      },
+      humanLogger: {
+        moves: [],
+        result: null,
+      },
+      killTimer: {
+        running: false,
+        startTs: 0,
+        elapsedMs: 0,
+        interval: null,
+        reset() {
+          this.stop();
+          this.elapsedMs = 0;
+          UI.updateKillClock(0);
+        },
+        start() {
+          if (this.running) return;
+          this.running = true;
+          this.startTs = performance.now();
+          this.interval = setInterval(() => {
+            const ms = this.elapsedMs + (performance.now() - this.startTs);
+            UI.updateKillClock(ms | 0);
+          }, 200);
+        },
+        stop() {
+          if (!this.running) return;
+          clearInterval(this.interval);
+          this.interval = null;
+          this.elapsedMs += performance.now() - this.startTs;
+          this.running = false;
+        },
+        hardStop() {
+          this.stop();
+          this.elapsedMs = 0;
+          UI.updateKillClock(0);
+        },
+      },
+
+      playerData: {
+        policy: new Map(),
+      },
+
+      ai: {
+        session: null,
+        ready: false,
+        failed: false,
+        deferredPromotion: null,
+      },
+    };
+
+    function setupInitialBoard() {
+      Game.firstCaptureHintShown = false;
+      const b = Game.board;
+      for (let r = 0; r < BOARD_N; r++)
+        for (let c = 0; c < BOARD_N; c++) b[r][c] = 0;
+      for (let r = 0; r <= 3; r++)
+        for (let c = 0; c < BOARD_N; c++) b[r][c] = MAN * TOP;
+      for (let c = 0; c <= 3; c++) b[4][c] = MAN * TOP;
+      b[4][4] = 0;
+      for (let c = 5; c < BOARD_N; c++) b[4][c] = MAN * BOT;
+      for (let r = 5; r < BOARD_N; r++)
+        for (let c = 0; c < BOARD_N; c++) b[r][c] = MAN * BOT;
+
+      Game.player = Game.settings.starter === "white" ? BOT : TOP;
+
+      Game.inChain = false;
+      Game.chainPos = null;
+      Game.lastMovedTo = null;
+      Game.moveCount = 0;
+      Game.gameOver = false;
+      Game.winner = null;
+      Game.awaitingPenalty = false;
+      Game.souflaPending = null;
+      Game.terminationReason = null;
+      Game.forcedEnabled = true;
+      Game.forcedPly = 0;
+      Game.forcedSeq = Game.player === TOP ? FO_TOP : FO_BOT;
+      Game.history = [];
+      Game.lastTurnSnapshot = null;
+      Game.killTimer.hardStop();
+      Game.humanLogger = { moves: [], result: null };
+
+      UI.logAIState(
+        t("log.forced.openingStarted") || "بدأت النقلات الإجبارية الافتتاحية"
+      );
+      UI.updateAll();
+    }
+
+    function pieceOwner(v) {
+      return v > 0 ? TOP : v < 0 ? BOT : 0;
+    }
+    function pieceKind(v) {
+      return v === 0 ? 0 : Math.abs(v) === 2 ? KING : MAN;
+    }
+    function forwardDir(side) {
+      return side === TOP ? +1 : -1;
+    }
+
+    function isBackRank(idx, forSide) {
+      const [r, _c] = idxToRC(idx);
+      return (r === 0 && forSide === BOT) || (r === 8 && forSide === TOP);
+    }
+
+    function encodeState() {
+      const planes = [];
+      for (let k = 0; k < 12; k++) {
+        planes.push(new Float32Array(BOARD_N * BOARD_N).fill(0));
+      }
+      const cur = Game.player;
+      for (let r = 0; r < BOARD_N; r++) {
+        for (let c = 0; c < BOARD_N; c++) {
+          const v = Game.board[r][c];
+          if (!v) continue;
+          const owner = pieceOwner(v);
+          const kind = pieceKind(v);
+          const idx = r * BOARD_N + c;
+          if (owner === cur) {
+            planes[kind === MAN ? 0 : 1][idx] = 1;
+          } else {
+            planes[kind === MAN ? 2 : 3][idx] = 1;
+          }
+        }
+      }
+      if (Game.inChain && Game.chainPos != null) {
+        planes[4][Game.chainPos] = 1;
+      }
+      const pv = cur === TOP ? 1 : 0;
+      planes[5].fill(pv);
+
+      for (let r = 0; r < BOARD_N; r++) {
+        for (let c = 0; c < BOARD_N; c++) {
+          const i = r * BOARD_N + c;
+          if (IS_WIDE[r][c]) planes[6][i] = 1;
+          if (MASK_BACK_TOP[r][c]) planes[7][i] = 1;
+          if (MASK_BACK_BOT[r][c]) planes[8][i] = 1;
+          if (MASK_CORNERS[r][c]) planes[9][i] = 1;
+          if (MASK_EYES[r][c]) planes[10][i] = 1;
+          if (MASK_MIDBACK[r][c]) planes[11][i] = 1;
+        }
+      }
+      return new ort.Tensor("float32", concatPlanes(planes), [1, 12, 9, 9]);
+    }
+    function concatPlanes(planes) {
+      const out = new Float32Array(12 * BOARD_N * BOARD_N);
+      let o = 0;
+      for (const p of planes) {
+        out.set(p, o);
+        o += p.length;
+      }
+      return out;
+    }
+
+    function encodeAction(frIdx, toIdx) {
+      return frIdx * N_CELLS + toIdx;
+    }
+    function decodeAction(a) {
+      if (a === ACTION_ENDCHAIN) return ["END", "END"];
+      return [Math.floor(a / N_CELLS), a % N_CELLS];
+    }
+
+    function generateStepsFrom(fromIdx, v) {
+      const res = [];
+      const [r, c] = idxToRC(fromIdx);
+      const kind = pieceKind(v);
+      if (kind === MAN) {
+        const dir = forwardDir(pieceOwner(v));
+        const r2 = r + dir,
+          c2 = c;
+        if (inside(r2, c2) && Game.board[r2][c2] === 0)
+          res.push(rcToIdx(r2, c2));
+        if (IS_WIDE[r][c]) {
+          for (const dc of [1, -1]) {
+            const rr = r + dir,
+              cc = c + dc;
+            if (!inside(rr, cc) || Game.board[rr][cc] !== 0) continue;
+            if (
+              (IS_IN_DIAG_A[r][c] && IS_IN_DIAG_A[rr][cc]) ||
+              (IS_IN_DIAG_B[r][c] && IS_IN_DIAG_B[rr][cc])
+            ) {
+              res.push(rcToIdx(rr, cc));
+            }
+          }
+        }
+      } else {
+        const dirs = [
+          ...DIRS_ORTHO,
+          ...(IS_IN_DIAG_A[r][c] ? DIRS_DIAG_A : []),
+          ...(IS_IN_DIAG_B[r][c] ? DIRS_DIAG_B : []),
+        ];
+        for (const [dr, dc] of dirs) {
+          let rr = r + dr,
+            cc = c + dc;
+          while (inside(rr, cc)) {
+            if (!isDirAllowedFrom(rr - dr, cc - dc, dr, dc)) break;
+            if (Game.board[rr][cc] !== 0) break;
+            res.push(rcToIdx(rr, cc));
+            rr += dr;
+            cc += dc;
+          }
+        }
+      }
+      return res;
+    }
+
+    function generateCapturesFrom(fromIdx, v) {
+      const out = [];
+      const [r, c] = idxToRC(fromIdx);
+      const kind = pieceKind(v);
+      if (kind === MAN) {
+        const dirs = [
+          ...DIRS_ORTHO,
+          ...(IS_IN_DIAG_A[r][c] ? DIRS_DIAG_A : []),
+          ...(IS_IN_DIAG_B[r][c] ? DIRS_DIAG_B : []),
+        ];
+        for (const [dr, dc] of dirs) {
+          const r1 = r + dr,
+            c1 = c + dc;
+          const r2 = r + 2 * dr,
+            c2 = c + 2 * dc;
+          if (!inside(r1, c1) || !inside(r2, c2)) continue;
+          if (!isDirAllowedFrom(r, c, dr, dc)) continue;
+          const mid = Game.board[r1][c1];
+          if (
+            mid !== 0 &&
+            pieceOwner(mid) !== pieceOwner(v) &&
+            Game.board[r2][c2] === 0
+          ) {
+            out.push([rcToIdx(r2, c2), rcToIdx(r1, c1)]);
+          }
+        }
+      } else {
+        const dirs = [
+          ...DIRS_ORTHO,
+          ...(IS_IN_DIAG_A[r][c] ? DIRS_DIAG_A : []),
+          ...(IS_IN_DIAG_B[r][c] ? DIRS_DIAG_B : []),
+        ];
+        for (const [dr, dc] of dirs) {
+          let rr = r + dr,
+            cc = c + dc;
+          let seenEnemy = false,
+            enemyIdx = null;
+          while (inside(rr, cc)) {
+            if (!isDirAllowedFrom(rr - dr, cc - dc, dr, dc)) break;
+            const v2 = Game.board[rr][cc];
+            if (v2 === 0) {
+              if (seenEnemy) {
+                out.push([rcToIdx(rr, cc), enemyIdx]);
+              }
+              rr += dr;
+              cc += dc;
+              continue;
+            }
+            if (pieceOwner(v2) === pieceOwner(v)) break;
+            if (seenEnemy) break;
+            seenEnemy = true;
+            enemyIdx = rcToIdx(rr, cc);
+            rr += dr;
+            cc += dc;
+          }
+        }
+      }
+      return out;
+    }
+
+    function maxCaptureLenFrom(fromIdx) {
+      const [r, c] = idxToRC(fromIdx);
+      const v = Game.board[r][c];
+      if (!v) return 0;
+
+      let best = 0;
+      const moves = generateCapturesFrom(fromIdx, v);
+
+      for (const [toIdx, jumped] of moves) {
+        const [jr, jc] = idxToRC(jumped);
+        const [r2, c2] = idxToRC(toIdx);
+
+        const keep = cloneBoard(Game.board);
+
+        Game.board[r][c] = 0;
+        Game.board[jr][jc] = 0;
+
+        const owner = pieceOwner(v);
+        const reachedBack = isBackRank(toIdx, owner);
+        const promotedV =
+          pieceKind(v) === MAN && reachedBack
+            ? owner === TOP
+              ? KING
+              : -KING
+            : v;
+
+        Game.board[r2][c2] = v;
+
+        const next = maxCaptureLenFrom(toIdx);
+        best = Math.max(best, 1 + next);
+
+        Game.board = keep;
+      }
+
+      return best;
+    }
+
+    function computeLongestForPlayer(side) {
+      const longestByPiece = new Map();
+      let Lmax = 0;
+      for (let idx = 0; idx < N_CELLS; idx++) {
+        const [r, c] = idxToRC(idx);
+        const v = Game.board[r][c];
+        if (!v || pieceOwner(v) !== side) continue;
+        const L = maxCaptureLenFrom(idx);
+        if (L > 0) {
+          longestByPiece.set(idx, L);
+          if (L > Lmax) Lmax = L;
+        }
+      }
+      const candidates = [];
+      for (const [idx, L] of longestByPiece) {
+        if (L === Lmax) candidates.push(idx);
+      }
+      return { longestByPiece, Lmax, candidates };
+    }
+
+    function cloneBoard(b) {
+      const out = new Array(BOARD_N)
+        .fill(0)
+        .map(() => new Array(BOARD_N).fill(0));
+      for (let r = 0; r < BOARD_N; r++)
+        for (let c = 0; c < BOARD_N; c++) out[r][c] = b[r][c];
+      return out;
+    }
+
+    function legalActions() {
+      const mask = new Uint8Array(N_ACTIONS);
+      const meta = new Array(N_CELLS * N_CELLS).fill(null);
+
+      if (Game.gameOver) {
+        return { mask, meta };
+      }
+
+      if (Game.forcedEnabled && Game.forcedPly < 10) {
+        const step = Game.forcedSeq[Game.forcedPly];
+        const fr = rcToIdx(step[0][0], step[0][1]);
+        const to = rcToIdx(step[1][0], step[1][1]);
+        const a = encodeAction(fr, to);
+        mask[a] = 1;
+        meta[a] = [fr, to];
+        mask[ACTION_ENDCHAIN] = 0;
+        return { mask, meta };
+      }
+
+      if (Game.inChain && Game.chainPos != null) {
+        const v =
+          Game.board[Math.floor(Game.chainPos / BOARD_N)][
+          Game.chainPos % BOARD_N
+          ];
+        const caps = generateCapturesFrom(Game.chainPos, v);
+        for (const [toIdx, _jumped] of caps) {
+          const a = encodeAction(Game.chainPos, toIdx);
+          mask[a] = 1;
+          meta[a] = [Game.chainPos, toIdx];
+        }
+        mask[ACTION_ENDCHAIN] = 1;
+        return { mask, meta };
+      }
+
+      for (let idx = 0; idx < N_CELLS; idx++) {
+        const [r, c] = idxToRC(idx);
+        const v = Game.board[r][c];
+        if (!v || pieceOwner(v) !== Game.player) continue;
+        for (const toIdx of generateStepsFrom(idx, v)) {
+          mask[encodeAction(idx, toIdx)] = 1;
+          meta[encodeAction(idx, toIdx)] = [idx, toIdx];
+        }
+        for (const [toIdx, _] of generateCapturesFrom(idx, v)) {
+          mask[encodeAction(idx, toIdx)] = 1;
+          meta[encodeAction(idx, toIdx)] = [idx, toIdx];
+        }
+      }
+      mask[ACTION_ENDCHAIN] = 0;
+      return { mask, meta };
+    }
+
+    function classifyCapture(fromIdx, toIdx) {
+      const [r1, c1] = idxToRC(fromIdx);
+      const [r2, c2] = idxToRC(toIdx);
+      const v = Game.board[r1][c1];
+      const kind = pieceKind(v);
+      const dr = r2 - r1,
+        dc = c2 - c1;
+      if (kind === MAN) {
+        const stepR = Math.sign(dr),
+          stepC = Math.sign(dc);
+        if (
+          (Math.abs(dr) === 2 && dc === 0) ||
+          (dr === 0 && Math.abs(dc) === 2) ||
+          (Math.abs(dr) === 2 && Math.abs(dc) === 2)
+        ) {
+          const midR = r1 + stepR,
+            midC = c1 + stepC;
+          if (
+            inside(midR, midC) &&
+            pieceOwner(Game.board[midR][midC]) === -pieceOwner(v) &&
+            Game.board[r2][c2] === 0 &&
+            isDirAllowedFrom(r1, c1, stepR, stepC)
+          ) {
+            return [true, rcToIdx(midR, midC)];
+          }
+        }
+        return [false, null];
+      } else {
+        if (r1 === r2 && c1 === c2) return [false, null];
+        const stepR = Math.sign(dr),
+          stepC = Math.sign(dc);
+        if (stepR === 0 && stepC === 0) return [false, null];
+        if (!isDirAllowedFrom(r1, c1, stepR, stepC)) return [false, null];
+        let rr = r1 + stepR,
+          cc = c1 + stepC;
+        let seenEnemy = false,
+          enemyIdx = null;
+        while (inside(rr, cc)) {
+          if (!isDirAllowedFrom(rr - stepR, cc - stepC, stepR, stepC)) break;
+          const v2 = Game.board[rr][cc];
+          if (v2 === 0) {
+            if (seenEnemy && rr === r2 && cc === c2) return [true, enemyIdx];
+            rr += stepR;
+            cc += stepC;
+            continue;
+          }
+          if (pieceOwner(v2) === pieceOwner(v)) break;
+          if (seenEnemy) break;
+          seenEnemy = true;
+          enemyIdx = rcToIdx(rr, cc);
+          rr += stepR;
+          cc += stepC;
+        }
+        return [false, null];
+      }
+    }
+
+    function applyMove(fromIdx, toIdx, isCapture, jumpedIdx) {
+      pushHistoryBeforeMove(fromIdx, toIdx);
+
+      const [r1, c1] = idxToRC(fromIdx);
+      const [r2, c2] = idxToRC(toIdx);
+      const v = Game.board[r1][c1];
+      Game.board[r1][c1] = 0;
+      if (isCapture && jumpedIdx != null) {
+        const [jr, jc] = idxToRC(jumpedIdx);
+        Game.board[jr][jc] = 0;
+        Visual.capturedOrderPush(jumpedIdx);
+      }
+      Game.board[r2][c2] = v;
+      Game.lastMovedFrom = fromIdx;
+      Game.lastMovedTo = toIdx;
+    }
+
+    function promoteIfNeeded(idx) {
+      const v = valueAt(idx);
+      if (!v) return;
+      if (pieceKind(v) !== MAN) return;
+      const owner = pieceOwner(v);
+      if (isBackRank(idx, owner)) {
+        setValueAt(idx, owner === TOP ? KING : -KING);
+        Visual.queueCrown(idx);
+        UI.log(
+          t("log.promote", {
+            cell: rcStr(idx),
+            side: sideLabel(owner),
+          }) || `تتويج: ${rcStr(idx)} أصبح ظائم (${sideLabel(owner)})`
+        );
+      }
+    }
+
+    function maybeQueueDeferredPromotion(idx) {
+      const v = valueAt(idx);
+      if (!v) return;
+      if (pieceKind(v) !== MAN) return;
+      const owner = pieceOwner(v);
+      if (isBackRank(idx, owner)) {
+        Game.deferredPromotion = { idx, side: owner };
+      }
+    }
+
+    function valueAt(idx) {
+      const [r, c] = idxToRC(idx);
+      return Game.board[r][c];
+    }
+    function setValueAt(idx, v) {
+      const [r, c] = idxToRC(idx);
+      Game.board[r][c] = v;
+    }
+    function rcStr(idx) {
+      const [r, c] = idxToRC(idx);
+      return `${r}.${c}`;
+    }
+
+    const TurnFX = {
+      capturedOrder: [],
+      reset() {
+        this.capturedOrder.length = 0;
+      },
+    };
+    Game.souflaSticky = {
+      armed: false,
+      clearOnHumanEnd: false,
+    };
+
+    function armSouflaFXPersistence() {
+      Game.souflaSticky.armed = true;
+      Game.souflaSticky.clearOnHumanEnd = true;
+    }
+
+    const Visual = (() => {
+      const S = {
+        lastMove: null,
+        undoMove: null,
+        souflaRemove: null,
+        souflaForcePath: [],
+        ignoredKills: [],
+        forcedOpeningArrow: null,
+        highlightCells: [],
+        showHintPath: null,
+        crownQueue: [],
+        showCoords: false,
+      };
+
+      const SouflaFX = {
+        active: false,
+        redPaths: [],
+        undoArrow: null,
+      };
+
+      function clearSouflaFX() {
+        SouflaFX.active = false;
+        SouflaFX.redPaths = [];
+        SouflaFX.undoArrow = null;
+        S.souflaForcePath = [];
+        S.souflaRemove = null;
+        draw();
+      }
+      function setSouflaIgnoredPaths(list) {
+        SouflaFX.active = true;
+        SouflaFX.redPaths = list.slice();
+        draw();
+      }
+      function setSouflaUndoArrow(from, to) {
+        SouflaFX.active = true;
+        SouflaFX.undoArrow = { from, to };
+        draw();
+      }
+
+      function setLastMove(fr, to) {
+        S.lastMove = { from: fr, to: to };
+      }
+      function setUndoMove(fr, to) {
+        S.undoMove = { from: fr, to: to };
+        draw();
+        setTimeout(() => {
+          S.undoMove = null;
+          draw();
+        }, 1200);
+      }
+
+      function setSouflaRemove(idx) {
+        S.souflaRemove = idx;
+        draw();
+      }
+
+      function setSouflaForcePath(path) {
+        S.souflaForcePath = path.slice();
+        draw();
+      }
+
+      function setIgnoredKills(list) {
+        S.ignoredKills = list.slice();
+        draw();
+      }
+
+      function setForcedOpeningArrow(fr, to) {
+        S.forcedOpeningArrow = { from: fr, to: to };
+        draw();
+      }
+      function clearForcedOpeningArrow() {
+        S.forcedOpeningArrow = null;
+        draw();
+      }
+
+      function setHighlightCells(cells) {
+        S.highlightCells = cells || [];
+      }
+      function setHintPath(from, path) {
+        S.showHintPath =
+          from != null && path?.length ? { from, path: path.slice() } : null;
+        draw();
+      }
+      function queueCrown(idx) {
+        S.crownQueue.push(idx);
+        setTimeout(() => {
+          S.crownQueue.shift();
+          draw();
+        }, 1200);
+      }
+
+      function draw() {
+        const cv = qs("#board");
+        const ctx = cv.getContext("2d");
+        const W = cv.width,
+          H = cv.height;
+        ctx.clearRect(0, 0, W, H);
+        drawGrid(ctx, W, H);
+        if (S.showCoords || Game.settings.showCoords) drawCoords(ctx, W, H);
+
+        for (const [r, c] of S.highlightCells) {
+          drawCellHighlight(ctx, r, c);
+        }
+        drawPieces(ctx);
+        drawCapturedNumbers(ctx);
+
+        if (S.lastMove)
+          drawArrow(ctx, S.lastMove.from, S.lastMove.to, "#22c55e");
+        if (S.undoMove)
+          drawArrow(ctx, S.undoMove.to, S.undoMove.from, "#facc15");
+        if (S.forcedOpeningArrow)
+          drawArrow(
+            ctx,
+            S.forcedOpeningArrow.from,
+            S.forcedOpeningArrow.to,
+            "#ef4444"
+          );
+        if (S.showHintPath)
+          drawPath(ctx, S.showHintPath.from, S.showHintPath.path, "#38bdf8");
+
+        if (S.souflaRemove != null) {
+          drawX(ctx, S.souflaRemove, "#ef4444");
+        }
+
+        if (SouflaFX.active) {
+          for (const seg of SouflaFX.redPaths) {
+            let cur = seg.from;
+            for (let i = 0; i < seg.path.length; i++) {
+              drawArrow(ctx, cur, seg.path[i], "#ef4444");
+              if (seg.jumps && seg.jumps[i] != null) {
+                drawNumberOnIdx(ctx, seg.jumps[i], String(i + 1), "#b91c1c");
+              }
+              cur = seg.path[i];
+            }
+          }
+        }
+
+        if (S.souflaForcePath?.length) {
+          const p = S.souflaForcePath;
+          for (let i = 0; i < p.length - 1; i++) {
+            drawArrow(ctx, p[i], p[i + 1], "#22c55e");
+          }
+        }
+
+        if (SouflaFX.active && SouflaFX.undoArrow) {
+          drawArrow(
+            ctx,
+            SouflaFX.undoArrow.from,
+            SouflaFX.undoArrow.to,
+            "#facc15"
+          );
+        }
+
+        for (const idx of S.crownQueue) {
+          drawCrownPulse(ctx, idx);
+        }
+      }
+
+      function cellCenter(idx) {
+        const [r, c] = idxToRC(idx);
+        const cv = qs("#board");
+        const size = Math.min(cv.width, cv.height);
+        const stepX = cv.width / BOARD_N;
+        const stepY = cv.height / BOARD_N;
+        const x = c * stepX + stepX / 2;
+        const y = r * stepY + stepY / 2;
+        return [x, y, stepX, stepY];
+      }
+      function drawGrid(ctx, W, H) {
+        ctx.save();
+        const stepX = W / BOARD_N;
+        const stepY = H / BOARD_N;
+
+        ctx.strokeStyle =
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--diag")
+            .trim() || "#b8c7f0";
+        ctx.lineWidth = 2;
+        for (const line of DIAG_A_LINES) {
+          ctx.beginPath();
+          for (let i = 0; i < line.length; i++) {
+            const [r, c] = line[i];
+            const x = c * stepX + stepX / 2,
+              y = r * stepY + stepY / 2;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        for (const line of DIAG_B_LINES) {
+          ctx.beginPath();
+          for (let i = 0; i < line.length; i++) {
+            const [r, c] = line[i];
+            const x = c * stepX + stepX / 2,
+              y = r * stepY + stepY / 2;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+
+        ctx.strokeStyle =
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--grid")
+            .trim() || "#cbd5e1";
+        ctx.lineWidth = 1.5;
+        for (let r = 0; r < BOARD_N; r++) {
+          const y = r * stepY + stepY / 2;
+          ctx.beginPath();
+          ctx.moveTo(stepX / 2, y);
+          ctx.lineTo(W - stepX / 2, y);
+          ctx.stroke();
+        }
+        for (let c = 0; c < BOARD_N; c++) {
+          const x = c * stepX + stepX / 2;
+          ctx.beginPath();
+          ctx.moveTo(x, stepY / 2);
+          ctx.lineTo(x, H - stepY / 2);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = "#667085";
+        for (let r = 0; r < BOARD_N; r++) {
+          for (let c = 0; c < BOARD_N; c++) {
+            const x = c * stepX + stepX / 2;
+            const y = r * stepY + stepY / 2;
+            ctx.beginPath();
+            ctx.arc(x, y, 2.6, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
+      function drawCoords(ctx, W, H) {
+        ctx.save();
+        ctx.fillStyle =
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--muted")
+            .trim() || "#475569";
+        ctx.font = "12px ui-monospace, monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const stepX = W / BOARD_N;
+        const stepY = H / BOARD_N;
+        for (let r = 0; r < BOARD_N; r++) {
+          for (let c = 0; c < BOARD_N; c++) {
+            const x = c * stepX + stepX / 2;
+            const y = r * stepY + stepY / 2;
+            ctx.fillText(`${r}.${c}`, x, y);
+          }
+        }
+        ctx.restore();
+      }
+      function drawCellHighlight(ctx, r, c) {
+        ctx.save();
+        const cv = qs("#board");
+        const stepX = cv.width / BOARD_N;
+        const stepY = cv.height / BOARD_N;
+        const minSide = Math.min(stepX, stepY);
+        const cx = c * stepX + stepX / 2;
+        const cy = r * stepY + stepY / 2;
+
+        const radius = minSide * 0.28;
+        ctx.translate(cx, cy);
+        ctx.rotate(Math.PI / 4);
+
+        ctx.fillStyle = "#ef4444";
+        ctx.globalAlpha = 0.18;
+        ctx.fillRect(-radius, -radius, 2 * radius, 2 * radius);
+
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = Math.max(3.5, minSide * 0.05);
+        ctx.strokeStyle = "#b91c1c";
+        ctx.strokeRect(-radius, -radius, 2 * radius, 2 * radius);
+
+        ctx.restore();
+      }
+
+      function pieceFill(v) {
+        const owner = pieceOwner(v);
+        return owner === BOT
+          ? ["#fafafa", "#d4d4d4"]
+          : ["#0b1220", "#1f2937"];
+      }
+
+      function drawPieces(ctx) {
+        const cv = qs("#board");
+        const stepX = cv.width / BOARD_N;
+        const stepY = cv.height / BOARD_N;
+        for (let r = 0; r < BOARD_N; r++) {
+          for (let c = 0; c < BOARD_N; c++) {
+            const v = Game.board[r][c];
+            if (!v) continue;
+            const x = c * stepX + stepX / 2;
+            const y = r * stepY + stepY / 2;
+            const rad = Math.min(stepX, stepY) / 2 - 25;
+            const [c1, c2] = pieceFill(v);
+            const grad = ctx.createRadialGradient(
+              x - rad * 0.3,
+              y - rad * 0.3,
+              rad * 0.2,
+              x,
+              y,
+              rad
+            );
+            grad.addColorStop(0, c1);
+            grad.addColorStop(1, c2);
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(x, y, rad, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = pieceOwner(v) === BOT ? "#facc15" : "#fb923c";
+            ctx.stroke();
+
+            if (Math.abs(v) === 2) {
+              ctx.beginPath();
+              ctx.arc(x, y, rad * 0.8, 0, Math.PI * 2);
+              ctx.lineWidth = 4;
+              ctx.strokeStyle = "#f5c542";
+              ctx.stroke();
+            }
+
+            const dotR = rad * 0.3;
+            ctx.beginPath();
+            ctx.arc(x, y, dotR, 0, Math.PI * 2);
+            ctx.fillStyle = pieceOwner(v) === BOT ? "#3b82f6" : "#facc15";
+            ctx.fill();
+
+            ctx.restore();
+          }
+        }
+      }
+      function drawCapturedNumbers(ctx) {
+        const order = TurnFX.capturedOrder;
+        if (!order || !order.length) return;
+        const cv = qs("#board");
+        const stepX = cv.width / BOARD_N;
+        const stepY = cv.height / BOARD_N;
+        const minSide = Math.min(stepX, stepY);
+        ctx.save();
+        ctx.font = `bold ${Math.max(
+          16,
+          (minSide * 0.34) | 0
+        )}px ui-monospace, monospace`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        for (let i = 0; i < order.length; i++) {
+          const idx = order[i];
+          const [r, c] = idxToRC(idx);
+          const x = c * stepX + stepX / 2;
+          const y = r * stepY + stepY / 2;
+          ctx.lineWidth = Math.max(3, minSide * 0.06);
+          ctx.strokeStyle = "rgba(0,0,0,0.7)";
+          ctx.strokeText(String(i + 1), x, y);
+          ctx.fillStyle = "#fef08a";
+          ctx.fillText(String(i + 1), x, y);
+        }
+        ctx.restore();
+      }
+
+      function drawNumberOnIdx(ctx, idx, text, color) {
+        const [x, y, stepX, stepY] = cellCenter(idx);
+        const minSide = Math.min(stepX, stepY);
+        ctx.save();
+        ctx.font = `bold ${Math.max(
+          16,
+          (minSide * 0.34) | 0
+        )}px ui-monospace, monospace`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.lineWidth = Math.max(3, minSide * 0.06);
+        ctx.strokeStyle = "rgba(0,0,0,0.7)";
+        ctx.strokeText(text, x, y);
+        ctx.fillStyle = color || "#fef08a";
+        ctx.fillText(text, x, y);
+        ctx.restore();
+      }
+
+      function drawArrow(ctx, fromIdx, toIdx, color) {
+        const [x1, y1] = cellCenter(fromIdx);
+        const [x2, y2] = cellCenter(toIdx);
+        ctx.save();
+        ctx.strokeStyle = color || "#22c55e";
+        ctx.lineWidth = 4.5;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        const ang = Math.atan2(y2 - y1, x2 - x1);
+        const head = 16;
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(
+          x2 - head * Math.cos(ang - Math.PI / 6),
+          y2 - head * Math.sin(ang - Math.PI / 6)
+        );
+        ctx.lineTo(
+          x2 - head * Math.cos(ang + Math.PI / 6),
+          y2 - head * Math.sin(ang + Math.PI / 6)
+        );
+        ctx.closePath();
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawPath(ctx, fromIdx, pathList, color) {
+        let cur = fromIdx;
+        for (const to of pathList) {
+          drawArrow(ctx, cur, to, color);
+          cur = to;
+        }
+      }
+      function drawX(ctx, idx, color) {
+        const [x, y, stepX, stepY] = cellCenter(idx);
+        const rad = Math.min(stepX, stepY) / 2 - 25;
+        const s = Math.max(6, rad * 0.9);
+        ctx.save();
+        ctx.strokeStyle = color || "#ef4444";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(x - s, y - s);
+        ctx.lineTo(x + s, y + s);
+        ctx.moveTo(x - s, y + s);
+        ctx.lineTo(x + s, y - s);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawCrownPulse(ctx, idx) {
+        const [x, y, stepX, stepY] = cellCenter(idx);
+        const r = (Math.min(stepX, stepY) / 2) * 0.9;
+        ctx.save();
+        ctx.strokeStyle = "#fcd34d";
+        ctx.lineWidth = 4;
+        ctx.globalAlpha = 0.8;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      return {
+        draw,
+        setLastMove,
+        setUndoMove,
+        setSouflaRemove,
+        setSouflaForcePath,
+        setIgnoredKills,
+        setForcedOpeningArrow,
+        clearForcedOpeningArrow,
+        setHighlightCells,
+        setHintPath,
+        queueCrown,
+        capturedOrderPush(idx) {
+          TurnFX.capturedOrder.push(idx);
+          draw();
+        },
+        clearCapturedOrder() {
+          TurnFX.reset();
+          draw();
+        },
+        setShowCoords(v) {
+          S.showCoords = !!v;
+          draw();
+        },
+        setSouflaIgnoredPaths: setSouflaIgnoredPaths,
+        setSouflaUndoArrow: setSouflaUndoArrow,
+        clearSouflaFX: clearSouflaFX,
+      };
+    })();
+
+    // ============================================================
+    // 3) Turn management, soufla detection, opening, end-turn
+    // ============================================================
+
+    const Turn = {
+      ctx: null,
+
+      start() {
+        if (
+          Game.deferredPromotion &&
+          Game.player === Game.deferredPromotion.side
+        ) {
+          const { idx, side } = Game.deferredPromotion;
+          const v = valueAt(idx);
+          if (v && pieceKind(v) === MAN && pieceOwner(v) === side) {
+            setValueAt(idx, side === TOP ? KING : -KING);
+            Visual.queueCrown(idx);
+            UI.log(
+              t("log.promote", {
+                cell: rcStr(idx),
+                side: sideLabel(side),
+              }) || `تتويج: ${rcStr(idx)} أصبح ظائم (${sideLabel(side)})`
+            );
+          }
+          Game.deferredPromotion = null;
+        }
+
+        const { longestByPiece, Lmax, candidates } = computeLongestForPlayer(
+          Game.player
+        );
+
+        this.ctx = {
+          longestByPiece,
+          Lmax,
+          candidates,
+          startedFrom: null,
+          capturesDone: 0,
+          snapshot: snapshotState(),
+        };
+        Visual.clearCapturedOrder();
+        Game.killTimer.hardStop();
+        UI.updateStatus();
+      },
+
+      endIfNoChain() {
+        if (!Game.inChain) {
+          this.finishTurnAndSoufla();
+        }
+      },
+
+      beginCapture(fromIdx) {
+        if (!this.ctx) this.start();
+        if (this.ctx.startedFrom == null) this.ctx.startedFrom = fromIdx;
+        if (!Game.killTimer.running && Game.player === humanSide()) {
+          Game.killTimer.start();
+        }
+
+        if (!Game.firstCaptureHintShown && Game.player === humanSide()) {
+          if (Game.forcedEnabled &&
+            ((Game.settings.starter === "white" && Game.forcedPly === 2) ||
+              (Game.settings.starter === "black" && Game.forcedPly === 1))) {
+
+            Modal.open({
+              title: t("modals.firstCaptureHint.title") || "تنبيه حول تنفيذ الأسر",
+              body: `<div>
+          <p>${t("modals.firstCaptureHint.line1") || "لإنهاء الأسر اضغط على زر إنهاء الأسر، ولن ينتقل الدور حتى تضغط عليه."}</p>
+          <p>${t("modals.firstCaptureHint.line2") || "يجب تنفيذ الأسر في السلسلة خطوة خطوة، وعند الانتهاء من جميع الخطوات اضغط على زر إنهاء الأسر لينتقل الدور. لا يمكن اختيار بداية ونهاية السلسلة مباشرة."}</p>
+        </div>`,
+              buttons: [
+                {
+                  label: t("modals.close") || "إغلاق",
+                  className: "primary",
+                  onClick: () => Modal.close(),
+                },
+              ],
+            });
+
+            Game.firstCaptureHintShown = true;
+          }
+        }
+      },
+
+
+      recordCapture() {
+        if (!this.ctx) {
+          this.start();
+        }
+        this.ctx.capturesDone += 1;
+      },
+
+      finishTurnAndSoufla() {
+        const endedBy = Game.player;
+
+        if (Game.lastMovedTo != null) {
+          maybeQueueDeferredPromotion(Game.lastMovedTo);
+        }
+
+        const pending = this.computeSouflaPending();
+        Game.inChain = false;
+        Game.chainPos = null;
+        if (pending) {
+          if (window.Online?.isActive) {
+            try {
+              window.Online.notifySouflaPending?.(pending);
+            } catch { }
+            return;
+          }
+
+          if (pending.penalizer === humanSide()) {
+            Game.availableSouflaForHuman = pending;
+          } else {
+            AI.pickSouflaDecision(pending)
+              .then((decision) => {
+                UI.showSouflaAgainstHuman(decision, pending);
+                applySouflaDecision(decision, pending);
+              })
+              .catch((e) => {
+                console.error("Soufla decision failed:", e);
+                const fallback =
+                  pending.options.find((o) => o.kind === "remove") ||
+                  pending.options[0];
+                UI.showSouflaAgainstHuman(fallback, pending);
+                applySouflaDecision(fallback, pending);
+              });
+            return;
+          }
+        }
+
+        switchPlayer();
+        Turn.start();
+        scheduleForcedOpeningAutoIfNeeded();
+        UI.updateAll();
+
+        if (endedBy === humanSide()) {
+          Visual.clearForcedOpeningArrow();
+          if (
+            Game.souflaSticky?.armed &&
+            Game.souflaSticky?.clearOnHumanEnd
+          ) {
+            Visual.clearSouflaFX();
+            Game.souflaSticky.armed = false;
+            Game.souflaSticky.clearOnHumanEnd = false;
+          }
+        }
+      },
+
+      computeSouflaPending() {
+        if (!this.ctx) return null;
+        const Lmax = this.ctx.Lmax;
+        const LB = this.ctx.longestByPiece;
+        if (Lmax <= 0) return null;
+
+        const candidates = this.ctx.candidates.slice();
+        const sf = this.ctx.startedFrom ?? null;
+        const capturesDone = this.ctx.capturesDone | 0;
+
+        let offenders = [];
+
+        if (sf == null) {
+          offenders = candidates;
+        } else {
+          const Ls = LB.get(sf) || 0;
+          const offenderSelf = capturesDone < Ls && Ls > 0;
+          const offenderOthers = Lmax > 0 && Ls < Lmax;
+
+          if (offenderSelf) offenders.push(sf);
+          if (offenderOthers) {
+            for (const idx of candidates) {
+              if (idx !== sf) offenders.push(idx);
+            }
+          }
+        }
+
+        offenders = Array.from(new Set(offenders));
+        if (!offenders.length) return null;
+        const options = [];
+        for (const idx of offenders) {
+          options.push({ kind: "remove", offenderIdx: idx });
+        }
+        for (const idx of offenders) {
+          const Ls = LB.get(idx) || 0;
+          if (Ls > 0) {
+            const full = longestPathsWithJumpsFrom(idx, Ls);
+            for (const o of full) {
+              options.push({
+                kind: "force",
+                offenderIdx: idx,
+                path: o.path,
+                jumps: o.jumps,
+              });
+            }
+          }
+        }
+
+        const penalizer = -Game.player;
+
+        return {
+          offenders,
+          longestByPiece: LB,
+          longestGlobal: Lmax,
+          options,
+          turnStartSnapshot: this.ctx.snapshot,
+          lastPieceIdx: Game.lastMovedTo,
+          startedFrom: sf,
+          penalizer,
+        };
+      },
+    };
+
+    function snapshotState() {
+      return {
+        board: cloneBoard(Game.board),
+        player: Game.player,
+        inChain: Game.inChain,
+        chainPos: Game.chainPos,
+        lastMovedTo: Game.lastMovedTo,
+        lastMovedFrom: Game.lastMovedFrom,
+        moveCount: Game.moveCount,
+        forcedEnabled: Game.forcedEnabled,
+        forcedPly: Game.forcedPly,
+      };
+    }
+
+    function pushHistoryBeforeMove(fromIdx, toIdx) {
+      const snap = snapshotState();
+      snap.lastMovedFrom = fromIdx;
+      snap.lastMovedTo = toIdx;
+      Game.history.push(snap);
+    }
+
+    function restoreSnapshot(snap) {
+      Game.board = cloneBoard(snap.board);
+      Game.player = snap.player;
+      Game.inChain = snap.inChain;
+      Game.chainPos = snap.chainPos;
+      Game.lastMovedTo = snap.lastMovedTo;
+      Game.lastMovedFrom = snap.lastMovedFrom;
+      Game.moveCount = snap.moveCount;
+
+      if (typeof snap.forcedEnabled === "boolean")
+        Game.forcedEnabled = snap.forcedEnabled;
+      if (typeof snap.forcedPly === "number") Game.forcedPly = snap.forcedPly;
+
+      Visual.clearCapturedOrder();
+      Visual.draw();
+      UI.updateAll();
+    }
+
+    function longestPathsFrom(fromIdx, maxLen) {
+      const out = longestPathsWithJumpsFrom(fromIdx, maxLen);
+      return out.map((o) => o.path);
+    }
+    function longestPathsWithJumpsFrom(fromIdx, maxLen) {
+      const startV = valueAt(fromIdx);
+      const owner = pieceOwner(startV);
+      const out = [];
+
+      function dfs(curIdx, vCur, depth, path, jumps) {
+        if (depth === maxLen) {
+          out.push({ path: path.slice(), jumps: jumps.slice() });
+          return;
+        }
+        const moves = generateCapturesFrom(curIdx, vCur);
+        for (const [toIdx, jumpedIdx] of moves) {
+          const keep = cloneBoard(Game.board);
+          const [r1, c1] = idxToRC(curIdx);
+          const [r2, c2] = idxToRC(toIdx);
+          const [jr, jc] = idxToRC(jumpedIdx);
+
+          Game.board[r1][c1] = 0;
+          Game.board[jr][jc] = 0;
+          Game.board[r2][c2] = vCur;
+
+          const rem = maxCaptureLenFrom(toIdx);
+          if (rem >= maxLen - (depth + 1)) {
+            dfs(
+              toIdx,
+              vCur,
+              depth + 1,
+              path.concat(toIdx),
+              jumps.concat(jumpedIdx)
+            );
+          }
+
+          Game.board = keep;
+        }
+      }
+
+      dfs(fromIdx, startV, 0, [], []);
+      return out;
+    }
+
+    function applySouflaDecision(decision, pending) {
+      if (!decision) return;
+      const redSegments = [];
+      for (const offIdx of pending.offenders) {
+        const maxLen = pending.longestByPiece.get(offIdx) || 0;
+        if (maxLen <= 0) continue;
+
+        const keep = snapshotState();
+        restoreSnapshot(pending.turnStartSnapshot);
+        const full = longestPathsWithJumpsFrom(offIdx, maxLen);
+        for (const o of full) {
+          redSegments.push({
+            from: offIdx,
+            path: o.path.slice(),
+            jumps: o.jumps.slice(),
+          });
+        }
+        restoreSnapshot(keep);
+      }
+      Visual.setSouflaIgnoredPaths(redSegments);
+
+      if (decision.kind === "remove") {
+        const originalIdx = decision.offenderIdx;
+
+        const actualRemoveIdx =
+          pending.startedFrom === decision.offenderIdx &&
+            pending.lastPieceIdx != null
+            ? pending.lastPieceIdx
+            : decision.offenderIdx;
+        setValueAt(actualRemoveIdx, 0);
+        Visual.setSouflaRemove(originalIdx);
+
+        UI.log(
+          t("log.soufla.remove", { cell: rcStr(originalIdx) }) ||
+          `سوفلة: إزالة ${rcStr(originalIdx)}`
+        );
+
+        armSouflaFXPersistence();
+      } else if (decision.kind === "force") {
+        if (pending.startedFrom != null && pending.lastPieceIdx != null) {
+          Visual.setSouflaUndoArrow(
+            pending.lastPieceIdx,
+            pending.startedFrom
+          );
+        }
+
+        restoreSnapshot(pending.turnStartSnapshot);
+
+        const from = decision.offenderIdx;
+        let cur = from;
+        const fullPath = [from];
+        for (const to of decision.path || []) {
+          const [isCap, jumped] = classifyCapture(cur, to);
+          if (!isCap || jumped == null) break;
+          applyMove(cur, to, true, jumped);
+          if (typeof Turn.recordCapture === "function") Turn.recordCapture();
+          cur = to;
+          fullPath.push(to);
+        }
+        Visual.setSouflaForcePath(fullPath);
+
+        if (pending.startedFrom != null && pending.lastPieceIdx != null) {
+          Visual.setSouflaUndoArrow(
+            pending.lastPieceIdx,
+            pending.startedFrom
+          );
+        }
+
+        UI.log(
+          t("log.soufla.force", {
+            from: rcStr(from),
+            path: decision.path.map(rcStr).join("→"),
+          }) ||
+          `سوفلة: إجبار ${rcStr(from)} على سلسلة (${decision.path.length})`
+        );
+        armSouflaFXPersistence();
+      }
+
+      Game.awaitingPenalty = false;
+      Game.souflaPending = null;
+
+      switchPlayer();
+      Turn.start();
+      scheduleForcedOpeningAutoIfNeeded();
+      UI.updateAll();
+      Game.availableSouflaForHuman = null;
+
+      if (
+        !Game.awaitingPenalty &&
+        !Game.gameOver &&
+        Game.player === aiSide() &&
+        !(Game.forcedEnabled && Game.forcedPly < 10)
+      ) {
+        AI.scheduleMove();
+      }
+    }
+
+    function switchPlayer() {
+      Game.player = -Game.player;
+      Game.moveCount += 1;
+      Visual.clearCapturedOrder();
+      Game.killTimer.hardStop();
+      checkEndConditions();
+      UI.updateStatus();
+    }
+
+    function checkEndConditions() {
+      let top = 0,
+        bot = 0,
+        tKings = 0,
+        bKings = 0;
+      for (let r = 0; r < BOARD_N; r++) {
+        for (let c = 0; c < BOARD_N; c++) {
+          const v = Game.board[r][c];
+          if (v > 0) {
+            top++;
+            if (Math.abs(v) === 2) tKings++;
+          }
+          if (v < 0) {
+            bot++;
+            if (Math.abs(v) === 2) bKings++;
+          }
+        }
+      }
+      qs("#topLeft").textContent = String(top);
+      qs("#botLeft").textContent = String(bot);
+      qs("#topKings").textContent = String(tKings);
+      qs("#botKings").textContent = String(bKings);
+      qs("#topCaptured").textContent = String(40 - top);
+      qs("#botCaptured").textContent = String(40 - bot);
+
+      const showGameOverModal = (titleKey, bodyKey) => {
+        Modal.open({
+          title: t(titleKey),
+          body: t(bodyKey),
+          buttons: [
+            {
+              label: t("modals.yes"),
+              className: "ok",
+              onClick: () => {
+                setupInitialBoard();
+                Visual.clearCapturedOrder();
+                Visual.clearSouflaFX();
+                Visual.setHighlightCells([]);
+                Visual.setHintPath(null, null);
+                Visual.clearForcedOpeningArrow();
+                Visual.setLastMove(null, null);
+                Visual.setUndoMove(null, null);
+
+                Visual.draw();
+                Modal.close();
+              },
+            },
+            {
+              label: t("modals.no"),
+              className: "ghost",
+              onClick: () => Modal.close(),
+            },
+          ],
+        });
+      };
+
+      if (top === 0 || bot === 0) {
+        Game.gameOver = true;
+        Game.winner = top === 0 ? BOT : TOP;
+
+        if (Game.winner === humanSide()) {
+          showGameOverModal(
+            "modals.gameOver.winTitle",
+            "modals.gameOver.winBody"
+          );
+        } else {
+          showGameOverModal(
+            "modals.gameOver.loseTitle",
+            "modals.gameOver.loseBody"
+          );
+        }
+
+        try {
+          HumanModel.updateFromGame(Game.humanLogger, Game.winner);
+          HumanModel.saveLocal();
+          toast(
+            t("log.human.updated") || "تم تحديث نموذج JSON وحفظه محلياً."
+          );
+          try {
+            if (Game.settings.autoDownloadHumanModel) {
+              HumanModel.exportFile();
+              toast(t("log.human.exported") || "تم تصدير نموذج JSON.");
+            }
+          } catch { }
+        } catch (e) {
+          console.warn("HumanModel update failed:", e);
+        }
+
+        Game.humanLogger = { moves: [], result: null };
+        return;
+      }
+
+      if (top === 1 && bot === 1 && tKings === 1 && bKings === 1) {
+        Game.gameOver = true;
+        Game.winner = null;
+        showGameOverModal(
+          "modals.gameOver.drawTitle",
+          "modals.gameOver.drawBody"
+        );
+
+        try {
+          HumanModel.updateFromGame(Game.humanLogger, Game.winner);
+          HumanModel.saveLocal();
+          toast(
+            t("log.human.updated") || "تم تحديث نموذج JSON وحفظه محلياً."
+          );
+
+          try {
+            if (Game.settings.autoDownloadHumanModel) {
+              HumanModel.exportFile();
+              toast(t("log.human.exported") || "تم تصدير نموذج JSON.");
+            }
+          } catch { }
+        } catch (e) {
+          console.warn("HumanModel update failed:", e);
+        }
+        Game.humanLogger = { moves: [], result: null };
+      }
+    }
+
+    function scheduleForcedOpeningAutoIfNeeded() {
+      if (!(Game.forcedEnabled && Game.forcedPly < 10)) return;
+      if (Game.gameOver) return;
+      Game.awaitingPenalty = false;
+      Game.souflaPending = null;
+      const step = Game.forcedSeq[Game.forcedPly];
+      const fr = rcToIdx(step[0][0], step[0][1]);
+      const to = rcToIdx(step[1][0], step[1][1]);
+      const base = sideOfColor(Game.settings.starter);
+      const mover = Game.forcedPly % 2 === 0 ? base : -base;
+
+      if (mover !== aiSide()) return;
+      setTimeout(() => {
+        const v = valueAt(fr);
+        const [isCap, jumped] = classifyCapture(fr, to);
+
+        const path = findCapturePath(fr, to, v);
+        if (path && path.length) {
+          let cur = fr;
+          if (!Turn.ctx) Turn.start();
+          Turn.beginCapture(fr);
+          for (const [toIdx, jumpedIdx] of path) {
+            const [isCapStep, jumpedStep] = classifyCapture(cur, toIdx);
+            applyMove(cur, toIdx, isCapStep, jumpedStep);
+            if (isCapStep && jumpedStep != null) {
+              Turn.recordCapture();
+              Visual.capturedOrderPush(jumpedStep);
+            }
+            cur = toIdx;
+          }
+          Game.inChain = false;
+          Game.chainPos = null;
+          Game.lastMovedTo = cur;
+        } else if (isCap) {
+          const [isCapFirst, jumpedFirst] = classifyCapture(fr, to);
+          applyMove(fr, to, isCapFirst, jumpedFirst);
+          if (isCapFirst && jumpedFirst != null) {
+            Visual.capturedOrderPush(jumpedFirst);
+            Turn.recordCapture();
+          }
+
+          let cur = to;
+          while (true) {
+            const vcur = valueAt(cur);
+            const caps = generateCapturesFrom(cur, vcur);
+            if (!caps.length) break;
+            const [toIdx] = caps[0];
+            const [isCapNext, jumpedNext] = classifyCapture(cur, toIdx);
+            applyMove(cur, toIdx, isCapNext, jumpedNext);
+            if (isCapNext && jumpedNext != null) {
+              Turn.recordCapture();
+              Visual.capturedOrderPush(jumpedNext);
+            }
+            cur = toIdx;
+          }
+
+          Game.inChain = false;
+          Game.chainPos = null;
+          Game.lastMovedTo = cur;
+        } else {
+          applyMove(fr, to, false, null);
+        }
+
+        Visual.setLastMove(fr, to);
+        UI.log(`${t("log.move") || "حركة"}: ${rcStr(fr)}→${rcStr(to)} (${sideLabel(mover)})`);
+
+        Game.forcedPly += 1;
+        if (Game.forcedPly === 10) {
+          UI.log(
+            t("log.forced.openingEnded") ||
+            "انتهت النقلات الإجبارية الافتتاحية"
+          );
+          if (AI.ready()) {
+            UI.log(
+              t("log.ai.started") || "بدأت نماذج الذكاء الاصطناعي بالعمل"
+            );
+          } else if (AI.failed()) {
+            UI.log(
+              t("log.ai.failed") ||
+              "لم يبدأ نموذج الذكاء الاصطناعي (فشل التحميل)"
+            );
+          }
+        }
+        switchPlayer();
+        Turn.start();
+        scheduleForcedOpeningAutoIfNeeded();
+        Visual.draw();
+        if (Game.forcedPly >= 10 && Game.player === aiSide()) {
+          Turn.finishTurnAndSoufla();
+        }
+
+        if (
+          !Game.awaitingPenalty &&
+          !Game.gameOver &&
+          Game.player === aiSide() &&
+          !(Game.forcedEnabled && Game.forcedPly < 10)
+        ) {
+          AI.scheduleMove();
+        }
+      }, 500);
+    }
+    function findCapturePath(fromIdx, targetIdx, pieceVal) {
+      const path = [];
+      const visitedBoards = new Set();
+      const origBoard = cloneBoard(Game.board);
+
+      function boardKey() {
+        let s = "";
+        for (let r = 0; r < BOARD_N; r++)
+          for (let c = 0; c < BOARD_N; c++) s += "," + Game.board[r][c];
+        return s;
+      }
+
+      let found = false;
+      function dfs(curIdx) {
+        if (curIdx === targetIdx) {
+          found = true;
+          return true;
+        }
+        const moves = generateCapturesFrom(curIdx, pieceVal);
+        for (const [toIdx, jumped] of moves) {
+          const [r1, c1] = idxToRC(curIdx);
+          const [r2, c2] = idxToRC(toIdx);
+          const [jr, jc] = idxToRC(jumped);
+          const keep = cloneBoard(Game.board);
+          Game.board[r1][c1] = 0;
+          Game.board[jr][jc] = 0;
+          Game.board[r2][c2] = pieceVal;
+          const key = boardKey();
+          if (!visitedBoards.has(key)) {
+            visitedBoards.add(key);
+            path.push([toIdx, jumped]);
+            if (dfs(toIdx)) return true;
+            path.pop();
+          }
+          Game.board = keep;
+        }
+        return false;
+      }
+
+      dfs(fromIdx);
+      Game.board = origBoard;
+      return found ? path : null;
+    }
+
+    // ===== Critical-state detection and heuristic (Mauritanian style) =====
+    function detectCriticalState(side) {
+      const { Lmax } = computeLongestForPlayer(side);
+      if (Lmax > 0) return true;
+
+      // promotion-near by distance
+      for (let idx = 0; idx < N_CELLS; idx++) {
+        const v = valueAt(idx);
+        if (!v || pieceOwner(v) !== side || pieceKind(v) !== MAN) continue;
+        const [r] = idxToRC(idx);
+        if ((side === TOP && r >= 7) || (side === BOT && r <= 1)) return true;
+      }
+
+      // direct capture threat to our king
+      const opp = -side;
+      for (let from = 0; from < N_CELLS; from++) {
+        const v = valueAt(from);
+        if (!v || pieceOwner(v) !== opp) continue;
+        const caps = generateCapturesFrom(from, v);
+        for (const [toIdx, jIdx] of caps) {
+          const jv = valueAt(jIdx);
+          if (jv && pieceOwner(jv) === side && pieceKind(jv) === KING) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function heuristicEvalBoard(side) {
+      let me = 0, opp = 0;
+      for (let i = 0; i < N_CELLS; i++) {
+        const v = valueAt(i);
+        if (!v) continue;
+        const owner = pieceOwner(v);
+        const kind = pieceKind(v);
+        const w = (kind === KING) ? 3.5 : 1.0;
+        if (owner === side) me += w; else opp += w;
+      }
+      let score = (me - opp);
+
+      // Column 0 attack
+      if (Game.settings.advanced?.boostCol0Attack) {
+        for (const idx of COL0) {
+          const v = valueAt(idx);
+          if (v && pieceOwner(v) === side) {
+            const [r, c] = idxToRC(idx);
+            const prog = side === TOP ? r : (8 - r);
+            score += 0.25 + 0.08 * prog;
+            const dir = forwardDir(side);
+            const r2 = r + dir, c2 = c;
+            if (inside(r2, c2) && valueAt(rcToIdx(r2, c2)) === 0) score += 0.2;
+          }
+        }
+        let chain = 0, tri = 0;
+        for (const idx of COL0) {
+          const v = valueAt(idx);
+          if (v !== 0 && pieceOwner(v) === side) {
+            chain++;
+            if (chain >= 3) tri++;
+          } else chain = 0;
+        }
+        if (tri > 0) score += 0.6 * tri;
+      }
+
+      // Column 8 defense
+      if (Game.settings.advanced?.lockCol8Defense) {
+        let oppChain = 0, oppTri = 0;
+        for (const idx of COL8) {
+          const v = valueAt(idx);
+          if (v !== 0 && pieceOwner(v) === -side) {
+            oppChain++;
+            if (oppChain >= 3) oppTri++;
+          } else oppChain = 0;
+        }
+        if (oppTri > 0) score -= 0.7 * oppTri;
+
+        for (const idx of COL8) {
+          const v = valueAt(idx);
+          if (v !== 0 && pieceOwner(v) === side && pieceKind(v) === MAN) {
+            score += 0.1;
+          }
+        }
+      }
+
+      // Mid columns slight negative for purposeless advance
+      for (let i = 0; i < N_CELLS; i++) {
+        const v = valueAt(i);
+        if (v && pieceOwner(v) === side && pieceKind(v) === MAN && isMidCol(i)) {
+          score -= 0.05;
+        }
+      }
+
+      return score;
+    }
+
+    function heuristicEvalMove(side, from, to) {
+      let score = heuristicEvalBoard(side);
+
+      const [rf, cf] = idxToRC(from);
+      const [rt, ct] = idxToRC(to);
+
+      if (Game.settings.advanced?.boostCol0Attack && ct === 0) {
+        const progGain = (side === TOP ? rt - rf : rf - rt);
+        if (progGain > 0) score += 0.25 + 0.05 * progGain;
+      }
+
+      if (Game.settings.advanced?.avoidFightsOnCol8 && cf !== 8 && ct === 8) {
+        const [isCap] = classifyCapture(from, to);
+        if (isCap) score -= 0.6;
+      }
+
+      const distToBack = (side === TOP) ? (8 - rt) : rt;
+      if (distToBack <= 1) score += 0.8; else if (distToBack <= 2) score += 0.35;
+
+      const [cap, jumped] = classifyCapture(from, to);
+      if (cap && jumped != null) {
+        const vj = valueAt(jumped);
+        if (vj && pieceOwner(vj) === -side && pieceKind(vj) === KING) score += 1.2;
+      }
+
+      return score;
+    }
+    // ===== Lightweight Minimax with Alpha-Beta and limited branching =====
+    function simulateApply(from, to) {
+      const [isCap, jumped] = classifyCapture(from, to);
+      const snap = snapshotState();
+      applyMove(from, to, isCap, jumped);
+      if (isCap) {
+        let cur = to, guard = 8;
+        while (guard-- > 0) {
+          const vcur = valueAt(cur);
+          const caps = generateCapturesFrom(cur, vcur);
+          if (!caps.length) break;
+          const [toIdx, jIdx] = caps[0];
+          const [ic2, jp2] = classifyCapture(cur, toIdx);
+          if (!ic2) break;
+          applyMove(cur, toIdx, true, jp2);
+          cur = toIdx;
+        }
+      }
+      switchPlayer();
+      return snap;
+    }
+
+    function undoTo(snap) { restoreSnapshot(snap); }
+
+    function staticEval(side) {
+      const sMe = heuristicEvalBoard(side);
+      const sOpp = heuristicEvalBoard(-side);
+      return sMe - 0.9 * sOpp;
+    }
+
+    function topKLegalActions(mask, k = 8) {
+      return function (pi) {
+        const items = [];
+        for (let a = 0; a < N_ACTIONS; a++) {
+          if (!mask[a] || a === ACTION_ENDCHAIN) continue;
+          items.push({ a, p: pi[a] });
+        }
+        items.sort((x, y) => y.p - x.p);
+        return items.slice(0, k).map(x => x.a);
+      };
+    }
+
+    function minimax(side, depth, alpha, beta, genActions) {
+      if (depth === 0 || Game.gameOver) return staticEval(side);
+      const meToMove = (Game.player === side);
+      const { mask } = legalActions();
+      const cand = genActions(mask);
+      if (!cand.length) return staticEval(side);
+
+      if (meToMove) {
+        let best = -Infinity;
+        for (const a of cand) {
+          const from = Math.floor(a / N_CELLS), to = a % N_CELLS;
+          const snap = simulateApply(from, to);
+          const val = minimax(side, depth - 1, alpha, beta, genActions);
+          undoTo(snap);
+          if (val > best) best = val;
+          if (best > alpha) alpha = best;
+          if (alpha >= beta) break;
+        }
+        return best;
+      } else {
+        let best = Infinity;
+        for (const a of cand) {
+          const from = Math.floor(a / N_CELLS), to = a % N_CELLS;
+          const snap = simulateApply(from, to);
+          const val = minimax(side, depth - 1, alpha, beta, genActions);
+          undoTo(snap);
+          if (val < best) best = val;
+          if (best < beta) beta = best;
+          if (alpha >= beta) break;
+        }
+        return best;
+      }
+    }
+
+    async function minimaxScoreActions(side, pi, k = 8, depth = 3) {
+      const { mask } = legalActions();
+      const gen = topKLegalActions(mask, k);
+      const actions = gen(pi);
+      if (!actions.length) return null;
+
+      const scores = new Map();
+      for (const a of actions) {
+        const from = Math.floor(a / N_CELLS), to = a % N_CELLS;
+        const snap = simulateApply(from, to);
+        const val = minimax(side, Math.max(1, depth - 1), -1e9, 1e9, gen);
+        undoTo(snap);
+        scores.set(a, val);
+      }
+      return scores;
+    }
+    // ===== Lightweight MCTS with bounded time =====
+    function randomPlayoutEval(side, plies = 6) {
+      let p = plies;
+      while (p-- > 0 && !Game.gameOver) {
+        const { mask } = legalActions();
+        const moves = [];
+        for (let a = 0; a < N_ACTIONS; a++) {
+          if (mask[a] && a !== ACTION_ENDCHAIN) moves.push(a);
+        }
+        if (!moves.length) break;
+        const pick = moves[(Math.random() * moves.length) | 0];
+        const from = Math.floor(pick / N_CELLS), to = pick % N_CELLS;
+        const [isCap, jumped] = classifyCapture(from, to);
+        applyMove(from, to, isCap, jumped);
+        switchPlayer();
+      }
+      const val = staticEval(side);
+      return val;
+    }
+
+    async function mctsScoreActions(side, pi, sims = 150) {
+      const { mask } = legalActions();
+      const actions = [];
+      for (let a = 0; a < N_ACTIONS; a++) {
+        if (mask[a] && a !== ACTION_ENDCHAIN) actions.push(a);
+      }
+      if (!actions.length) return null;
+
+      const visits = new Map();
+      const values = new Map();
+      for (const a of actions) { visits.set(a, 0); values.set(a, 0); }
+
+      const capMs = Math.min(800, Game.settings.advanced?.timeCapMs || 800);
+      const endTs = performance.now() + capMs;
+      let count = 0;
+      while (count < sims && performance.now() < endTs) {
+        // pick by highest prior
+        let pick = actions[0], bestP = -1;
+        for (const a of actions) { if (pi[a] > bestP) { bestP = pi[a]; pick = a; } }
+
+        const snap = snapshotState();
+        const from = Math.floor(pick / N_CELLS), to = pick % N_CELLS;
+        const [isCap, jumped] = classifyCapture(from, to);
+        applyMove(from, to, isCap, jumped);
+        switchPlayer();
+
+        const v = randomPlayoutEval(side, 6);
+        restoreSnapshot(snap);
+
+        visits.set(pick, (visits.get(pick) || 0) + 1);
+        values.set(pick, (values.get(pick) || 0) + v);
+        count++;
+      }
+
+      const scores = new Map();
+      for (const a of actions) {
+        const n = visits.get(a) || 1, sum = values.get(a) || 0;
+        scores.set(a, sum / n);
+      }
+      return scores;
+    }
+    // ===== Deterministic blending of all signals =====
+    function blendScoresDeterministic(pi, heur, mini, mcts, w) {
+      const out = new Float32Array(pi.length);
+      let maxv = -1e9;
+      for (let i = 0; i < pi.length; i++) {
+        let v = (w.w_policy_onnx * (pi[i] || 0)) +
+          (w.w_policy_json * 0) +
+          (w.w_heur * (heur?.get(i) ?? 0)) +
+          (w.w_minimax * (mini?.get(i) ?? 0)) +
+          (w.w_mcts * (mcts?.get(i) ?? 0));
+
+        out[i] = v;
+        if (v > maxv) maxv = v;
+      }
+      let sum = 0;
+      for (let i = 0; i < out.length; i++) {
+        out[i] = Math.exp(out[i] - maxv);
+        sum += out[i];
+      }
+      if (sum > 0) for (let i = 0; i < out.length; i++) out[i] /= sum;
+      return out;
+    }
+
+    async function rescoreAndPick(side, pi, effMask) {
+      const adv = Game.settings.advanced || {};
+
+      // heuristics for top-K candidates
+      const { mask } = legalActions();
+      const gen = topKLegalActions(mask, 10);
+      const cand = gen(pi);
+      const heur = new Map();
+      if (adv.useHeuristic) {
+        for (const a of cand) {
+          const from = Math.floor(a / N_CELLS), to = a % N_CELLS;
+          heur.set(a, heuristicEvalMove(side, from, to));
+        }
+      }
+
+      // minimax at critical positions
+      let mini = null;
+      const isCrit = detectCriticalState(side);
+      if (adv.useMinimax && (!adv.minimaxAtCriticalOnly || isCrit)) {
+        mini = await minimaxScoreActions(side, pi, 8, adv.minimaxDepth || 3);
+      }
+
+      // midgame MCTS
+      let mcts = null;
+      const midgame = Game.moveCount >= 10 && Game.moveCount <= 80;
+      if (adv.useMCTS && (!adv.mctsAtMidgameOnly || midgame)) {
+        mcts = await mctsScoreActions(side, pi, adv.mctsSimulations || 150);
+      }
+
+      const w = {
+        w_policy_onnx: adv.w_policy_onnx ?? 1.0,
+        w_policy_json: adv.w_policy_json ?? 2.0,
+        w_heur: adv.w_heur ?? 0.55,
+        w_minimax: adv.w_minimax ?? 0.95,
+        w_mcts: adv.w_mcts ?? 0.4
+      };
+      const blended = blendScoresDeterministic(pi, heur, mini, mcts, w);
+
+
+      let best = -1, bp = -1;
+      for (let i = 0; i < N_ACTIONS; i++) {
+        if (!effMask[i] || i === ACTION_ENDCHAIN) continue;
+        if (blended[i] > bp) { bp = blended[i]; best = i; }
+      }
+      return best >= 0 ? best : ACTION_ENDCHAIN;
+    }
+
+    // ============================================================
+    // 4) Player sides and control flow
+    // ============================================================
+
+    function humanSide() {
+      return BOT;
+    }
+    function aiSide() {
+      return -humanSide();
+    }
+
+    // ============================================================
+    // 5) Input handling (no pre-highlighting of legal moves)
+    // ============================================================
+
+    const Input = {
+      selected: null,
+
+      onBoardClick(ev) {
+        if (Game.gameOver) return;
+        if (Game.awaitingPenalty) {
+          UI.showSouflaModal(Game.souflaPending);
+          return;
+        }
+
+        const cv = qs("#board");
+        const rect = cv.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const x =
+          (ev.offsetX ?? ev.clientX - rect.left) * (cv.width / rect.width);
+        const y =
+          (ev.offsetY ?? ev.clientY - rect.top) * (cv.height / rect.height);
+        const stepX = cv.width / BOARD_N;
+        const stepY = cv.height / BOARD_N;
+        const c = Math.floor(x / stepX);
+        const r = Math.floor(y / stepY);
+        if (r < 0 || r >= BOARD_N || c < 0 || c >= BOARD_N) return;
+        const idx = rcToIdx(r, c);
+
+        if (Game.forcedEnabled && Game.forcedPly < 10) {
+          if (Game.player !== humanSide()) return;
+
+          const step = Game.forcedSeq[Game.forcedPly];
+
+          const frExp = rcToIdx(step[0][0], step[0][1]);
+          const toExp = rcToIdx(step[1][0], step[1][1]);
+          if (Input.selected == null) {
+            const v = valueAt(idx);
+            const allowedStart =
+              Game.inChain && Game.chainPos != null ? Game.chainPos : frExp;
+
+            if (idx !== allowedStart || pieceOwner(v) !== Game.player) {
+              Visual.setForcedOpeningArrow(frExp, toExp);
+              UI.status(
+                t("status.forcedMove", {
+                  from: rcStr(frExp),
+                  to: rcStr(toExp),
+                }) ||
+                `مرحلة الافتتاح الإجباري: النقلة المسموحة هي ${rcStr(
+                  frExp
+                )}→${rcStr(toExp)}`
+              );
+
+              Modal.open({
+                title: t("modals.forcedOpening.title") || "الافتتاح الإجباري",
+                body: `<div>${t("modals.forcedOpening.body") ||
+                  "في الافتتاح الإجباري هناك 5 نقلات إجبارية لكل لاعب يجب أن تلتزم بها، وبعد انتهاء النقلات الافتتاحية يمكنك تحريك القطع بكل حرية.<br><br>النقلة الإجبارية حالياً هي المحددة بالسهم الأحمر."
+                  }</div>`,
+                buttons: [
+                  {
+                    label: t("modals.close") || "إغلاق",
+                    className: "primary",
+                    onClick: () => Modal.close(),
+                  },
+                ],
+              });
+              return;
+            }
+            Input.selected = idx;
+            Visual.setHighlightCells([[r, c]]);
+            Visual.draw();
+            return;
+          } else {
+            const v = valueAt(Input.selected);
+            const [isCapSingle, jumpedSingle] = classifyCapture(
+              Input.selected,
+              idx
+            );
+
+            if (!isCapSingle) {
+              if (idx !== toExp) {
+                Visual.setForcedOpeningArrow(frExp, toExp);
+                UI.status(
+                  t("status.forcedMove", {
+                    from: rcStr(frExp),
+                    to: rcStr(toExp),
+                  }) ||
+                  `مرحلة الافتتاح الإجباري: النقلة المسموحة هي ${rcStr(
+                    frExp
+                  )}→${rcStr(toExp)}`
+                );
+                Input.selected = null;
+                Visual.setHighlightCells([]);
+                Visual.draw();
+                return;
+              }
+
+              if (Game.forcedPly === 0) {
+                applyMove(Input.selected, idx, false, null);
+                Game.inChain = false;
+                Game.chainPos = null;
+                Game.lastMovedTo = idx;
+                Game.killTimer.hardStop();
+
+                Visual.setLastMove(Input.selected, idx);
+                UI.log(
+                  `${t("log.move") || "حركة"}: ${rcStr(Input.selected)}→${rcStr(idx)} (${sideLabel(
+                    Game.player
+                  )})`
+                );
+
+
+                if (typeof Visual.clearForcedOpeningArrow === "function") {
+                  Visual.clearForcedOpeningArrow();
+                }
+
+                Game.forcedPly += 1;
+
+                if (Game.forcedPly === 10) {
+                  UI.log(
+                    t("log.forced.openingEnded") ||
+                    "انتهت النقلات الإجبارية الافتتاحية"
+                  );
+                  Modal.open({
+                    title:
+                      t("modals.forcedOpeningOver.title") ||
+                      "الافتتاح الإجباري",
+                    body: `<div>${t("modals.forcedOpeningOver.body") ||
+                      "انتهت النقلات الافتتاحية، يمكنك تحريك القطع بكل حرية"
+                      }</div>`,
+                    buttons: [
+                      {
+                        label: t("modals.close") || "إغلاق",
+                        className: "primary",
+                        onClick: () => Modal.close(),
+                      },
+                    ],
+                  });
+
+                  if (AI.ready())
+                    UI.log(
+                      t("log.ai.started") ||
+                      "بدأ نموذج الذكاء الاصطناعي بالعمل"
+                    );
+                  else if (AI.failed())
+                    UI.log(
+                      t("log.ai.failed") ||
+                      "لم يبدأ نموذج الذكاء الاصطناعي بالعمل"
+                    );
+                }
+
+                Input.selected = null;
+                Visual.setHighlightCells([]);
+                switchPlayer();
+                Turn.start();
+                scheduleForcedOpeningAutoIfNeeded();
+                Visual.draw();
+                if (
+                  !Game.awaitingPenalty &&
+                  !Game.gameOver &&
+                  Game.player === aiSide() &&
+                  !(Game.forcedEnabled && Game.forcedPly < 10)
+                ) {
+                  AI.scheduleMove();
+                }
+                return;
+              }
+
+              Visual.setForcedOpeningArrow(frExp, toExp);
+              UI.status(
+                t("status.forcedMove", {
+                  from: rcStr(frExp),
+                  to: rcStr(toExp),
+                }) ||
+                `مرحلة الافتتاح الإجباري: النقلة المسموحة هي ${rcStr(
+                  frExp
+                )}→${rcStr(toExp)}`
+              );
+              Input.selected = null;
+              Visual.setHighlightCells([]);
+              Visual.draw();
+              return;
+            }
+
+            if (!Turn.ctx) Turn.start();
+            Turn.beginCapture(Input.selected);
+            applyMove(Input.selected, idx, true, jumpedSingle);
+            Turn.recordCapture();
+
+            Game.inChain = true;
+            Game.chainPos = idx;
+            Game.lastMovedTo = idx;
+            if (!Game.killTimer.running) Game.killTimer.start();
+            qs("#btnEndKill").disabled = false;
+
+            Visual.setLastMove(Input.selected, idx);
+            UI.log(
+              `${nowHHMMSS()} ${t("log.capture") || "حركة أسر"}: ${rcStr(Input.selected)}→${rcStr(
+                idx
+              )}، ${t("log.remove") || "إزالة"} ${rcStr(jumpedSingle)} (${sideLabel(Game.player)})`
+            );
+
+
+            Input.selected = null;
+            Visual.setHighlightCells([]);
+            Visual.draw();
+            return;
+          }
+        }
+
+        if (Game.player !== humanSide()) {
+          return;
+        }
+        const v = valueAt(idx);
+        if (Input.selected == null) {
+          if (!v || pieceOwner(v) !== Game.player) {
+            return;
+          }
+          Input.selected = idx;
+          Visual.setHighlightCells([[r, c]]);
+          Visual.draw();
+          return;
+        } else {
+          const fromIdx = Input.selected;
+          const toIdx = idx;
+          const { mask } = legalActions();
+          const a = encodeAction(fromIdx, toIdx);
+          if (!mask[a]) {
+            Input.selected = null;
+            Visual.setHighlightCells([]);
+            Visual.draw();
+            return;
+          }
+          const [isCap, jumped] = classifyCapture(fromIdx, toIdx);
+          if (isCap) {
+            if (!Turn.ctx) Turn.start();
+            Turn.beginCapture(fromIdx);
+            applyMove(fromIdx, toIdx, true, jumped);
+            Turn.recordCapture();
+            Game.inChain = true;
+            Game.chainPos = toIdx;
+            Game.lastMovedTo = toIdx;
+            Visual.setLastMove(fromIdx, toIdx);
+
+            try {
+              Game.humanLogger.moves.push([rcStr(fromIdx), rcStr(toIdx)]);
+            } catch { }
+
+            UI.log(
+              `${nowHHMMSS()} ${t("log.capture") || "حركة أسر"}: ${rcStr(fromIdx)}→${rcStr(
+                toIdx
+              )}، ${t("log.remove") || "إزالة"} ${rcStr(jumped)} (${sideLabel(Game.player)})`
+            );
+
+
+            const caps = generateCapturesFrom(toIdx, valueAt(toIdx));
+            if (caps.length === 0) {
+              qs("#btnEndKill").disabled = false;
+            } else {
+              qs("#btnEndKill").disabled = false;
+            }
+          } else {
+            if (Game.inChain) {
+              Input.selected = null;
+              Visual.setHighlightCells([]);
+              Visual.draw();
+              return;
+            }
+            applyMove(fromIdx, toIdx, false, null);
+            Game.inChain = false;
+            Game.chainPos = null;
+            Game.lastMovedTo = toIdx;
+            Visual.setLastMove(fromIdx, toIdx);
+
+            try {
+              Game.humanLogger.moves.push([rcStr(fromIdx), rcStr(toIdx)]);
+            } catch { }
+
+            UI.log(
+              `${nowHHMMSS()} ${t("log.move") || "حركة"}: ${rcStr(fromIdx)}→${rcStr(
+                toIdx
+              )} (${sideLabel(Game.player)})`
+            );
+
+
+            maybeQueueDeferredPromotion(toIdx);
+            Turn.finishTurnAndSoufla();
+          }
+          Input.selected = null;
+          Visual.setHighlightCells([]);
+          Visual.draw();
+
+          if (
+            !Game.awaitingPenalty &&
+            !Game.gameOver &&
+            Game.player === aiSide() &&
+            !(Game.forcedEnabled && Game.forcedPly < 10)
+          ) {
+            AI.scheduleMove();
+          }
+        }
+      },
+    };
+
+    // ============================================================
+    // 6) End chain button and forced-opening capture validation
+    // ============================================================
+
+    function endKillPressed() {
+      if (!Game.inChain || Game.player !== humanSide()) {
+        toast(t("ui.noEndChain") || "لا يمكن إنهاء السلسلة الآن.");
+        return;
+      }
+      Game.killTimer.stop();
+      try {
+        if (Game.player === humanSide() && Game.inChain) {
+          Game.humanLogger.moves.push(["END", "END"]);
+        }
+      } catch { }
+
+      if (Game.forcedEnabled && Game.forcedPly < 10) {
+        const step = Game.forcedSeq[Game.forcedPly];
+        const fromReq = rcToIdx(step[0][0], step[0][1]);
+        const toReq = rcToIdx(step[1][0], step[1][1]);
+        const startedFrom = Turn.ctx?.startedFrom;
+        const endedAt = Game.chainPos ?? Game.lastMovedTo;
+        if (startedFrom !== fromReq || endedAt !== toReq) {
+          if (Turn.ctx?.snapshot) {
+            restoreSnapshot(Turn.ctx.snapshot);
+          }
+          Visual.setForcedOpeningArrow(fromReq, toReq);
+          UI.status(
+            t("status.forcedMove", {
+              from: rcStr(fromReq),
+              to: rcStr(toReq),
+            }) ||
+            `مرحلة الافتتاح الإجباري: النقلة المسموحة هي ${rcStr(
+              fromReq
+            )}→${rcStr(toReq)}`
+          );
+          Turn.start();
+          Visual.draw();
+          return;
+        }
+        Game.forcedPly += 1;
+        if (Game.forcedPly === 10) {
+          UI.log(
+            t("log.forced.openingEnded") ||
+            "انتهت النقلات الإجبارية الافتتاحية"
+          );
+          if (AI.ready())
+            UI.log(
+              t("log.ai.started") || "بدأ نموذج الذكاء الاصطناعي بالعمل"
+            );
+          else if (AI.failed())
+            UI.log(
+              t("log.ai.failed") || "لم يبدأ نموذج الذكاء الاصطناعي بالعمل"
+            );
+        }
+      }
+
+      maybeQueueDeferredPromotion(Game.chainPos ?? Game.lastMovedTo);
+
+      Game.inChain = false;
+      Game.chainPos = null;
+      qs("#btnEndKill").disabled = true;
+
+      Turn.finishTurnAndSoufla();
+
+      if (
+        !Game.awaitingPenalty &&
+        !Game.gameOver &&
+        Game.player === aiSide() &&
+        !(Game.forcedEnabled && Game.forcedPly < 10)
+      ) {
+        AI.scheduleMove();
+      }
+    }
+
+    // ============================================================
+    // 7) UI: status, log, modals (settings, soufla, rules), clock
+    // ============================================================
+
+    const UI = {
+      updateAll() {
+        this.updateStatus();
+        Visual.draw();
+      },
+      updateStatus() {
+        const s = qs("#statusText");
+        if (!s) return;
+        if (Game.gameOver) {
+          const msg = Game.winner == null
+            ? (t("status.draw") || "انتهت المباراة بالتعادل")
+            : `${t("status.win") || "انتهت المباراة – الفائز:"} ${sideLabel(Game.winner)}`;
+          s.textContent = msg;
+
+          return;
+        }
+        s.textContent = `${t("status.turn") || "الدور الآن على"} ${sideLabel(Game.player)}`;
+      },
+
+      status(txt) {
+        qs("#statusText").textContent = txt;
+      },
+      updateKillClock(ms) {
+        const mm = Math.floor(ms / 60000)
+          .toString()
+          .padStart(2, "0");
+        const ss = Math.floor((ms % 60000) / 1000)
+          .toString()
+          .padStart(2, "0");
+        qs("#killClock").textContent = `${mm}:${ss}`;
+      },
+      logAIState(txt) {
+        logLine(txt);
+      },
+      log(txt) {
+        logLine(txt);
+      },
+      showSettingsModal() {
+        const wrap = document.createElement("div");
+        wrap.innerHTML = `
+                  <div class="option-list">
+                   
+                    <div class="option-item">
+                      <div><b>${t("settings.aiCapture") || "إجبارية الأسر للحاسوب"
+          }</b></div>
+                      <div>
+                        <select id="setAICap">
+                          <option value="mandatory">${t("settings.mandatory") || "إجباري"
+          }</option>
+                          <option value="random">${t("settings.random") || "عشوائي"
+          }</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="option-item">
+                      <div><b>${t("settings.theme") || "الوضع البصري"
+          }</b></div>
+                      <div>
+                        <select id="setTheme">
+                          <option value="light">${t("settings.light") || "فاتح"
+          }</option>
+                          <option value="dark">${t("settings.dark") || "داكن"
+          }</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="option-item">
+                      <div><b>${t("settings.longFx") || "المؤثرات المطولة"
+          }</b></div>
+                      <div><input type="checkbox" id="setLongFx"></div>
+                    </div>
+                    <div class="option-item">
+                      <div><b>${t("settings.coords") || "إظهار ترقيم النقاط"
+          }</b></div>
+                      <div><input type="checkbox" id="setCoords"></div>
+                    </div>
+                    <div class="option-item">
+                      <div><b>${t("settings.starter") || "من يبدأ"
+          }</b></div>
+                      <div>
+                        <select id="setStarter">
+                          <option value="white">${t("players.white") || "الأبيض"
+          }</option>
+                          <option value="black">${t("players.black") || "الأسود"
+          }</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                `;
+
+        const advBtn = document.createElement("button");
+        advBtn.className = "btn";
+        advBtn.classList.add("btn-advanced");
+        advBtn.style.marginTop = "12px";
+        advBtn.textContent = t("settings.advanced") || "إعدادات متقدمة";
+        advBtn.addEventListener("click", () => UI.showAdvancedSettings());
+        wrap.appendChild(advBtn);
+
+        Modal.open({
+          title: t("modals.settings.title") || "الإعدادات",
+          body: wrap,
+          closeOnClickOutside: false,
+          buttons: [
+            {
+              label: t("modals.apply") || "تطبيق",
+              className: "ok",
+              onClick: () => {
+
+                const cap = qs("#setAICap").value;
+                const th = qs("#setTheme").value;
+                const fx = qs("#setLongFx").checked;
+                const co = qs("#setCoords").checked;
+                const st = qs("#setStarter").value;
+
+                Game.settings.aiCaptureMode = cap;
+                Game.settings.theme = th;
+                Game.settings.longFx = fx;
+                Game.settings.showCoords = co;
+                Game.settings.starter = st;
+
+                applyTheme(th);
+                Visual.setShowCoords(co);
+
+                setupInitialBoard();
+                Turn.start();
+                scheduleForcedOpeningAutoIfNeeded();
+
+                if (
+                  !Game.gameOver &&
+                  Game.player === aiSide() &&
+                  !(Game.forcedEnabled && Game.forcedPly < 10)
+                ) {
+                  AI.scheduleMove();
+                }
+
+                Modal.close();
+                UI.log(
+                  `${t("log.settings.applied") || "تم تطبيق الإعدادات"} – ${t("settings.aiCapture") || "إجبارية الأسر للحاسوب"
+                  }: ${cap}, ${t("settings.theme") || "الوضع"}: ${th}, ${t("settings.starter") || "من يبدأ"
+                  }: ${st}`
+                );
+              },
+            },
+            {
+              label: t("modals.save") || "حفظ",
+              className: "primary",
+              onClick: () => {
+                localStorage.setItem(
+                  "zamat.settings",
+                  JSON.stringify(Game.settings)
+                );
+                Modal.close();
+                toast(t("log.settings.saved") || "تم حفظ الإعدادات");
+              },
+            },
+            {
+              label: t("modals.cancel") || "إلغاء",
+              className: "ghost",
+              onClick: () => Modal.close(),
+            },
+          ],
+        });
+
+        qs("#setAICap").value = Game.settings.aiCaptureMode;
+        qs("#setTheme").value = Game.settings.theme;
+        qs("#setLongFx").checked = !!Game.settings.longFx;
+        qs("#setCoords").checked = !!Game.settings.showCoords;
+        qs("#setStarter").value = Game.settings.starter;
+      },
+
+
+      showAdvancedSettingsHelp() {
+        const helpBody = document.createElement("div");
+        helpBody.innerHTML = `
+ <div class="help-list" style="line-height:1.8">
+      <div style="margin-bottom:10px;">
+        <b>${t("help.thinkTime.title")}:</b>
+        ${t("help.thinkTime.desc")}
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <b>${t("help.heuristic.title")}:</b>
+        ${t("help.heuristic.desc")}
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <b>${t("help.minimax.title")}:</b>
+        ${t("help.minimax.desc")}
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <b>${t("help.mcts.title")}:</b>
+        ${t("help.mcts.desc")}
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <b>${t("help.mauritanianStrategy.title")}:</b>
+        ${t("help.mauritanianStrategy.desc")}
+        <ul style="margin:6px 0 0 18px;">
+          <li><b>${t("settings.boostCol0")}:</b> ${t("help.boostCol0.desc")}</li>
+          <li><b>${t("settings.lockCol8")}:</b> ${t("help.lockCol8.desc")}</li>
+          <li><b>${t("settings.avoidFightCol8")}:</b> ${t("help.avoidFightCol8.desc")}</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <b>${t("help.blendWeights.title")}:</b>
+        ${t("help.blendWeights.desc")}
+        <ul style="margin:6px 0 0 18px;">
+          <li><b>Policy:</b> ${t("help.blend.policy")}</li>
+          <li><b>Heur:</b> ${t("help.blend.heur")}</li>
+          <li><b>MM:</b> ${t("help.blend.mm")}</li>
+          <li><b>MCTS:</b> ${t("help.blend.mcts")}</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <b>${t("help.timeBoost.title")}:</b>
+        ${t("help.timeBoost.desc")}
+      </div>
+
+      <div>
+        <b>${t("help.timeCap.title")}:</b>
+        ${t("help.timeCap.desc")}
+      </div>
+    </div>
+  `;
+
+        Modal.open({
+          title: t("settings.explain"),
+          body: helpBody,
+          backdropClose: false,
+          buttons: [
+            {
+              label: t("modals.close"),
+              className: "primary",
+              onClick: () => {
+                Modal.close();
+                this.showAdvancedSettings();
+              }
+            }
+          ]
+        });
+      },
+
+
+
+
+      showAdvancedSettings() {
+        const adv = Game.settings.advanced || {};
+
+        const body = document.createElement("div");
+        body.innerHTML = `
+    <div class="option-list">
+
+        <!-- خيار زمن التفكير -->
+        <div class="option-item">
+            <div><b>${t("settings.thinkTime") || "زمن التفكير (مللي ثانية)"}</b></div>
+            <div>
+                <select id="advThink">
+                    ${[0, 2000, 4000, 6000, 8000, 10000, 12000]
+            .map(ms => `<option value="${ms}" ${Game.settings.thinkTimeMs === ms ? 'selected' : ''}>
+                            ${ms === 0 ? (t("settings.unlimited") || "غير محدود") : ms + " ms"}
+                        </option>`).join('')}
+                </select>
+            </div>
+        </div>
+
+        <div class="option-item">
+            <div><b>${t("settings.heuristic") || "الهيوريستك"}</b></div>
+            <div><input type="checkbox" id="advHeur" ${adv.useHeuristic ? 'checked' : ''}></div>
+        </div>
+
+        <div class="option-item">
+            <div><b>${t("settings.minimax") || "Minimax"}</b></div>
+            <div>
+                <input type="checkbox" id="advMM" ${adv.useMinimax ? 'checked' : ''}>
+                <label>${t("settings.depth") || "عمق:"}</label>
+                <select id="advMMDepth">
+                    ${[2, 3, 4, 5, 6, 7, 8].map(v => `<option value="${v}" ${adv.minimaxDepth === v ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+                <label>${t("settings.criticalOnly") || "حرج فقط"}</label>
+                <input type="checkbox" id="advMMCrit" ${adv.minimaxAtCriticalOnly ? 'checked' : ''}>
+            </div>
+        </div>
+
+        <div class="option-item">
+            <div><b>${t("settings.mcts") || "MCTS"}</b></div>
+            <div>
+                <input type="checkbox" id="advMCTS" ${adv.useMCTS ? 'checked' : ''}>
+                <label>${t("settings.simulations") || "محاكاة:"}</label>
+                <select id="advMCTSSims">
+                    ${[100, 150, 200, 300, 400, 500].map(v => `<option value="${v}" ${adv.mctsSimulations === v ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+                <label>${t("settings.midgameOnly") || "منتصف اللعب فقط"}</label>
+                <input type="checkbox" id="advMCTSMid" ${adv.mctsAtMidgameOnly ? 'checked' : ''}>
+            </div>
+        </div>
+
+        <div class="option-item">
+            <div><b>${t("settings.mauritanianStrategy") || "استراتيجية موريتانية"}</b></div>
+            <div>
+                <label>${t("settings.boostCol0") || "تعزيز عمود 0"}</label> 
+                <input type="checkbox" id="advCol0" ${adv.boostCol0Attack ? 'checked' : ''}>
+                <label>${t("settings.lockCol8") || "قفل عمود 8"}</label> 
+                <input type="checkbox" id="advCol8" ${adv.lockCol8Defense ? 'checked' : ''}>
+                <label>${t("settings.avoidFightCol8") || "تجنب قتال على 8"}</label> 
+                <input type="checkbox" id="advNoFight8" ${adv.avoidFightsOnCol8 ? 'checked' : ''}>
+            </div>
+        </div>
+
+        <div class="option-item">
+            <div><b>${t("settings.blendWeights") || "أوزان المزج"}</b></div>
+            <div class="row">
+               <label>P-ONNX</label>
+<select id="wPolOnnx">
+  ${[0.5,  1.0,  1.5, 2.0, 2.5, 3.0, 4.0, 5.0].map(v => `<option value="${v}" ${adv.w_policy_onnx === v ? 'selected' : ''}>${v}</option>`).join('')}
+</select>
+<label>P-JSON</label>
+<select id="wPolJson">
+  ${[0.5, 1.0,  1.5, 2.0, 2.5, 3.0, 4.0, 5.0 ].map(v => `<option value="${v}" ${adv.w_policy_json === v ? 'selected' : ''}>${v}</option>`).join('')}
+</select>
+
+                <label>Heur</label>
+                <select id="wHeur">
+                    ${[0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0].map(v => `<option value="${v}" ${adv.w_heur === v ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+                <label>MM</label>
+                <select id="wMM">
+                    ${[0.25, 0.5, 0.75,  1.0, 1.5, 2.0, 2.5, 3.0].map(v => `<option value="${v}" ${adv.w_minimax === v ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+                <label>MCTS</label>
+                <select id="wMCTS">
+                    ${[0.25,  0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0].map(v => `<option value="${v}" ${adv.w_mcts === v ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+            </div>
+        </div>
+
+        <!-- tBoost و tCap كقوائم -->
+        <div class="option-item">
+            <div><b>${t("settings.timeBoost") || "زيادة الوقت في الحالات الحرجة (مللي ثانية)"}</b></div>
+            <div>
+                <select id="tBoost">
+                    ${[0, 200, 400, 600, 800, 1000, 1500, 2000, 3000, 4000, 5000]
+            .map(v => `<option value="${v}" ${adv.timeBoostCriticalMs === v ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+            </div>
+        </div>
+
+        <div class="option-item">
+            <div><b>${t("settings.timeCap") || "الحد الأقصى لزمن الانتظار الإضافي (مللي ثانية)"}</b></div>
+            <div>
+                <select id="tCap">
+                    ${[1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 10000, 12000]
+            .map(v => `<option value="${v}" ${adv.timeCapMs === v ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+            </div>
+        </div>
+
+    </div>
+    `;
+
+        Modal.open({
+          title: t("settings.advanced") || "إعدادات متقدمة",
+          body,
+          backdropClose: false,
+          buttons: [
+            {
+              label: t("settings.explain") || "شرح الإعدادات",
+              className: "primary",
+              onClick: () => {
+                UI.showAdvancedSettingsHelp();
+              }
+            },
+            {
+              label: t("modals.apply") || "تطبيق",
+              className: "ok",
+              onClick: () => {
+                const getVal = id => {
+                  const el = body.querySelector('#' + id);
+                  return el.type === 'checkbox' ? el.checked : parseFloat(el.value);
+                };
+                Game.settings.advanced = {
+                  useHeuristic: getVal("advHeur"),
+                  useMinimax: getVal("advMM"),
+                  useMCTS: getVal("advMCTS"),
+                  minimaxDepth: parseInt(getVal("advMMDepth"), 10),
+                  minimaxAtCriticalOnly: getVal("advMMCrit"),
+                  mctsSimulations: parseInt(getVal("advMCTSSims"), 10),
+                  mctsAtMidgameOnly: getVal("advMCTSMid"),
+                  boostCol0Attack: getVal("advCol0"),
+                  lockCol8Defense: getVal("advCol8"),
+                  avoidFightsOnCol8: getVal("advNoFight8"),
+                  w_policy_onnx: getVal("wPolOnnx"),
+                  w_policy_json: getVal("wPolJson"),
+
+                  w_heur: getVal("wHeur"),
+                  w_minimax: getVal("wMM"),
+                  w_mcts: getVal("wMCTS"),
+                  timeBoostCriticalMs: parseInt(getVal("tBoost"), 10),
+                  timeCapMs: parseInt(getVal("tCap"), 10)
+                };
+                Game.settings.thinkTimeMs = parseInt(getVal("advThink"), 10);
+                Modal.close();
+                this.showSettingsModal();
+              }
+            },
+
+            {
+              label: t("modals.cancel") || "إلغاء",
+              className: "ghost",
+              onClick: () => Modal.close()
+            }
+          ]
+        });
+
+
+        // 🔹 تعطيل القوائم التابعة عند إلغاء تفعيل الخيار الرئيسي
+        const advMM = body.querySelector('#advMM');
+        const advMMDepth = body.querySelector('#advMMDepth');
+        advMM.addEventListener('change', () => {
+          advMMDepth.disabled = !advMM.checked;
+        });
+        advMMDepth.disabled = !advMM.checked;
+
+        const advMCTS = body.querySelector('#advMCTS');
+        const advMCTSSims = body.querySelector('#advMCTSSims');
+        advMCTS.addEventListener('change', () => {
+          advMCTSSims.disabled = !advMCTS.checked;
+        });
+        advMCTSSims.disabled = !advMCTS.checked;
+      },
+
+
+
+      showSouflaModal(pending) {
+        if (!pending) return;
+        const body = document.createElement("div");
+        body.innerHTML = `
+              <p>${t("modals.soufla.titleSelf") || "بالفعل هناك سوفلة لصالحك."
+          }</p>
+              <div class="option-list" id="souflaList"></div>
+            `;
+        const list = body.querySelector("#souflaList");
+
+        const Lmax = pending.longestGlobal || 0;
+
+        pending.options.forEach((opt, i) => {
+          const item = document.createElement("div");
+          item.className = "option-item";
+          let label = "";
+          if (opt.kind === "remove") {
+            label =
+              (t("modals.soufla.removeOne", {
+                cell: rcStr(opt.offenderIdx),
+              }) || `إزالة قطعة مخالفة واحدة: ${rcStr(opt.offenderIdx)}`) +
+              ` — السبب: تجاهل سلسلة بطول ${Lmax}`;
+          } else {
+            const pathStr = (opt.path || []).map(rcStr).join("→");
+            label =
+              (t("modals.soufla.forceOne", {
+                cell: rcStr(opt.offenderIdx),
+                path: pathStr,
+              }) ||
+                `إجبار سلسلة أطول: ${rcStr(opt.offenderIdx)} → ${pathStr}`) +
+              ` — السبب: تجاهل سلسلة بطول ${Lmax}`;
+          }
+          item.innerHTML = `<div>${label}</div><div><button class="btn ok" data-i="${i}">${t("modals.applyPenalty") || "تطبيق العقوبة"
+            }</button></div>`;
+          list.appendChild(item);
+        });
+
+        function applyClick(ev) {
+          const btn = ev.target.closest("button");
+          if (!btn) return;
+          const i = Number(btn.getAttribute("data-i"));
+          const decision = Game.souflaPending?.options[i];
+          if (!decision) return;
+          Modal.close();
+          applySouflaDecision(decision, Game.souflaPending);
+        }
+
+        Modal.open({
+          title: t("modals.soufla.header") || "السوفلة",
+          body,
+          buttons: [
+            {
+              label: t("modals.cancel") || "إلغاء",
+              className: "ghost",
+              onClick: () => Modal.close(),
+            },
+          ],
+          onClose: () => list.removeEventListener("click", applyClick),
+        });
+        list.addEventListener("click", applyClick);
+      },
+      showSouflaAgainstHuman(decision, pending) {
+        const offenderStart = rcStr(decision.offenderIdx);
+        const startedFrom =
+          pending.startedFrom != null ? rcStr(pending.startedFrom) : null;
+        const endedAt =
+          pending.lastPieceIdx != null ? rcStr(pending.lastPieceIdx) : null;
+        const Lmax = pending.longestGlobal || 0;
+
+        let title = t("modals.soufla.header") || "السوفلة";
+        let body = "";
+
+        if (decision.kind === "remove") {
+          const removeCell =
+            pending.startedFrom === decision.offenderIdx &&
+              pending.startedFrom != null
+              ? rcStr(pending.startedFrom)
+              : offenderStart;
+          body = `
+      <div><b>سوفلة ضدك</b></div>
+      <div>لأن القطعة في النقطة ${offenderStart}${startedFrom ? ` (بدأت من ${startedFrom})` : ""
+            } تجاهلت مسار أسر أطول (طوله ${Lmax}).</div>
+      <div>اختار الحاسوب عقوبة <b>الإزالة</b>، وتمت إزالة قطعتك عند النقطة ${removeCell}.</div>
+      ${startedFrom && endedAt && startedFrom !== endedAt
+              ? `<div>تمت إعادة نقلتك الأخيرة إلى مكانها الأصلي (${startedFrom}).</div>`
+              : ""
+            }
+    `;
+        } else {
+          const pathStr = (decision.path || []).map(rcStr).join("→");
+          body = `
+      <div><b>سوفلة ضدك</b></div>
+      <div>لأن القطعة في النقطة ${offenderStart}${startedFrom ? ` (بدأت من ${startedFrom})` : ""
+            } لم تنفذ مسار الأسر الأطول (طوله ${Lmax}).</div>
+      ${startedFrom && endedAt
+              ? `<div>اختار الحاسوب عقوبة <b>الإجبار</b>، وتمت إعادة نقلتك الأخيرة من ${endedAt} إلى ${startedFrom}، وتم إجبار قطعتك على تنفيذ المسار:</div>`
+              : `<div>اختار الحاسوب عقوبة <b>الإجبار</b>، وتم إجبار قطعتك على تنفيذ المسار:</div>`
+            }
+      <div class="mono">${offenderStart} → ${pathStr}</div>
+    `;
+        }
+
+        Modal.open({
+          title,
+          body,
+          buttons: [
+            {
+              label: t("modals.close") || "إغلاق",
+              className: "primary",
+              onClick: () => Modal.close(),
+            },
+          ],
+        });
+      },
+      showRulesModal() {
+        const body = `
+ <div class="rules-container">
+      <div class="rules-section">
+        <h3 class="rules-title">${t("rules.section1.title")}</h3>
+        <ul class="rules-list">
+          <li class="rule-item"><span class="rule-key">${t("rules.mode.title")}</span> ${t("rules.mode.desc")}</li>
+          <li class="rule-item"><span class="rule-key">${t("rules.start.title")}</span> ${t("rules.start.desc")}</li>
+          <li class="rule-item"><span class="rule-key">${t("rules.movement.title")}</span> ${t("rules.movement.desc")}</li>
+          <li class="rule-item"><span class="rule-key">${t("rules.capture.title")}</span> ${t("rules.capture.desc")}</li>
+          <li class="rule-item"><span class="rule-key">${t("rules.chain.title")}</span> ${t("rules.chain.desc")}</li>
+          <li class="rule-item"><span class="rule-key">${t("rules.soufla.title")}</span> ${t("rules.soufla.desc")}</li>
+          <li class="rule-item"><span class="rule-key">${t("rules.computer.title")}</span> ${t("rules.computer.desc")}</li>
+          <li class="rule-item"><span class="rule-key">${t("rules.settings.title")}</span> ${t("rules.settings.desc")}</li>
+        </ul>
+      </div>
+      
+      <div class="rules-section">
+        <h3 class="rules-title">${t("rules.section2.title")}</h3>
+        <ul class="rules-list">
+          <li class="rule-item"><span class="rule-key">${t("rules.board.title")}</span> ${t("rules.board.desc")}</li>
+          <li class="rule-item"><span class="rule-key">${t("rules.pieces.title")}</span> ${t("rules.pieces.desc")}</li>
+          <li class="rule-item"><span class="rule-key">${t("rules.movementRules.title")}</span> ${t("rules.movementRules.desc")}</li>
+          <li class="rule-item"><span class="rule-key">${t("rules.captureRules.title")}</span> ${t("rules.captureRules.desc")}</li>
+          <li class="rule-item"><span class="rule-key">${t("rules.souflaRules.title")}</span> ${t("rules.souflaRules.desc")}</li>
+          <li class="rule-item"><span class="rule-key">${t("rules.promotion.title")}</span> ${t("rules.promotion.desc")}</li>
+          <li class="rule-item"><span class="rule-key">${t("rules.winConditions.title")}</span> ${t("rules.winConditions.desc")}</li>
+        </ul>
+      </div>
+    </div>
+  `; Modal.open({
+          title: t("modals.rules.title") || "📜 قواعد لعبة الظامت الموريتانية",
+          body,
+          buttons: [
+            {
+              label: t("modals.close") || "إغلاق",
+              className: "primary",
+              onClick: () => Modal.close(),
+            },
+          ],
+        });
+      },
+      showHint() {
+        if (
+          Game.gameOver ||
+          Game.player !== humanSide() ||
+          Game.awaitingPenalty
+        )
+          return;
+        if (Game.forcedEnabled && Game.forcedPly < 10) return;
+        AI.computeHint().then((hint) => {
+          if (!hint) {
+            Modal.open({
+              title: t("modals.hint.title") || "تلميح",
+              body: `<div>${t("hint.none") || "لا يوجد تلميح متاح حالياً."
+                }</div>`,
+              buttons: [
+                {
+                  label: t("modals.close") || "إغلاق",
+                  className: "primary",
+                  onClick: () => Modal.close(),
+                },
+              ],
+            });
+            return;
+          }
+
+          const { from, path } = hint;
+          Visual.setHintPath(from, path);
+          Modal.open({
+            title: t("modals.hint.title") || "تلميح",
+            body: `<div>${t("modals.hint.desc") ||
+              "المسار المقترح معروض بصرياً على الرقعة."
+              }</div>`,
+            buttons: [
+              {
+                label: t("modals.close") || "إغلاق",
+                className: "primary",
+                onClick: () => {
+                  Visual.setHintPath(null, null);
+                  Modal.close();
+                },
+              },
+            ],
+          });
+        });
+      },
+    };
+
+    // ============================================================
+    // 8) AI: ONNX + light MCTS + player data blending
+    // ============================================================
+    const HM_CAP_LOGIT = 2.5;
+    const HM_CAP_VALUE = 0.75;
+    const HM_MAX_COUNT = 1_000_000;
+
+    const HumanModel = (() => {
+      let model = null;
+
+      const defaultModel = () => ({
+        version: 2,
+        board_n: 9,
+        n_actions: N_ACTIONS,
+        meta: {
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          lr: HUMAN_LR,
+          decay: HUMAN_DECAY,
+          weight: HUMAN_WEIGHT,
+          arch: {
+            in_channels: 12,
+            board_n: 9,
+            n_actions: N_ACTIONS,
+            channels: 96,
+            num_blocks: 8,
+            heads: {
+              policy: {
+                name: "policy_value_logits",
+                type: "linear",
+                input_dim: 2 * 9 * 9,
+                output_dim: N_ACTIONS,
+              },
+              value: {
+                name: "value",
+                type: "scalar",
+                head_dims: [1, 9 * 9, 96, 1],
+                activation: "tanh",
+              },
+            },
+            onnx: {
+              opset: 14,
+              output_names: ["policy_value_logits", "value"],
+            },
+          },
+          stats: { totalGames: 0, humanWins: 0, aiWins: 0, draws: 0 },
+        },
+        policy_bias: new Float32Array(N_ACTIONS).fill(0),
+        value_bias: 0.0,
+        policy_counts: new Float32Array(N_ACTIONS).fill(0),
+        value_count: 0,
+        stats: {
+          updates: 0,
+          totalGames: 0,
+          humanWins: 0,
+          aiWins: 0,
+          draws: 0,
+        },
+      });
+
+      let hasExternalData = false;
+
+      async function load() {
+        if (model) return model;
+
+        AI.updateJSONBadge("loading");
+
+        let externalJson = null;
+        let localJson = null;
+        let used = "default";
+
+        try {
+          try {
+            const resp = await fetch(HUMAN_MODEL_PATH, { cache: "no-store" });
+            if (!resp.ok) throw new Error("HTTP " + resp.status);
+            externalJson = await resp.json();
+          } catch (_e) {
+            externalJson = null;
+          }
+
+          const saved = localStorage.getItem("zamat.human_model");
+          localJson = saved ? JSON.parse(saved) : null;
+
+          if (externalJson) {
+            model = revive(externalJson);
+            if (localJson) mergeModels(localJson);
+            hasExternalData = true;
+            used = "merged";
+          } else if (localJson) {
+            model = revive(localJson);
+            hasExternalData = false;
+            used = "local";
+          } else {
+            model = defaultModel();
+            hasExternalData = false;
+            used = "default";
+          }
+
+          AI.updateJSONBadge("ready");
+
+          if (used === "merged") {
+            UI.logAIState(
+              t('log.human.merged') || "تم تحميل ملف json الخارجي ودمجه مع النموذج المحلي."
+            );
+          } else if (used === "local") {
+            UI.logAIState(
+              t('log.human.localOnly') || "فشل تحميل نموذج json الخارجي، تم استخدام النموذج المحلي فقط."
+            );
+          } else {
+            UI.logAIState(
+              t('log.human.default') || "لم يُعثر على نموذج خارجي أو محلي، تم إنشاء نموذج افتراضي."
+            );
+          }
+
+          return model;
+        } catch (e) {
+          model = defaultModel();
+          hasExternalData = false;
+          AI.updateJSONBadge("fail");
+          UI.logAIState(t('log.human.loadFail') || "تعذر تحميل نموذج JSON، تم إنشاء نموذج افتراضي.");
+          console.error(e);
+          return model;
+        }
+      }
+
+      function revive(j) {
+        const out = defaultModel();
+
+        out.version = j.version || 1;
+        out.board_n = j.board_n || 9;
+        out.n_actions = N_ACTIONS;
+
+        out.meta = Object.assign({}, out.meta, j.meta || {});
+        if (!out.meta.arch) out.meta.arch = {};
+        out.meta.arch.in_channels = 12;
+        out.meta.arch.board_n = 9;
+        out.meta.arch.n_actions = N_ACTIONS;
+        out.meta.arch.channels = j?.meta?.arch?.channels ?? 96;
+        out.meta.arch.num_blocks = j?.meta?.arch?.num_blocks ?? 8;
+        out.meta.arch.heads = out.meta.arch.heads || {
+          policy: {
+            name: "policy_value_logits",
+            type: "linear",
+            input_dim: 2 * 9 * 9,
+            output_dim: N_ACTIONS,
+          },
+          value: {
+            name: "value",
+            type: "scalar",
+            head_dims: [1, 9 * 9, out.meta.arch.channels, 1],
+            activation: "tanh",
+          },
+        };
+        out.meta.arch.onnx = out.meta.arch.onnx || {
+          opset: 14,
+          output_names: ["policy_value_logits", "value"],
+        };
+
+        out.policy_bias = new Float32Array(
+          j.policy_bias || new Array(N_ACTIONS).fill(0)
+        );
+        out.value_bias =
+          typeof j.value_bias === "number" ? j.value_bias : 0.0;
+
+        const counts = j.policy_counts || new Array(N_ACTIONS).fill(0);
+        out.policy_counts = counts.BYTES_PER_ELEMENT
+          ? counts
+          : new Float32Array(counts);
+        out.value_count =
+          typeof j.value_count === "number" ? j.value_count : 0;
+
+        if (out.policy_bias.length !== N_ACTIONS) {
+          const tmp = new Float32Array(N_ACTIONS).fill(0);
+          tmp.set(
+            out.policy_bias.subarray(
+              0,
+              Math.min(N_ACTIONS, out.policy_bias.length)
+            )
+          );
+          out.policy_bias = tmp;
+        }
+        if (out.policy_counts.length !== N_ACTIONS) {
+          const tmpc = new Float32Array(N_ACTIONS).fill(0);
+          tmpc.set(
+            out.policy_counts.subarray(
+              0,
+              Math.min(N_ACTIONS, out.policy_counts.length)
+            )
+          );
+          out.policy_counts = tmpc;
+        }
+
+        out.stats = Object.assign({}, out.stats, j.stats || {});
+        if (out.version < 2) out.version = 2;
+
+        return out;
+      }
+
+      function toJSON() {
+        return {
+          version: model.version,
+          board_n: model.board_n,
+          n_actions: N_ACTIONS,
+          meta: Object.assign({}, model.meta, {
+            updatedAt: new Date().toISOString(),
+          }),
+          policy_bias: Array.from(model.policy_bias),
+          value_bias: model.value_bias,
+          policy_counts: Array.from(
+            model.policy_counts || new Float32Array(N_ACTIONS)
+          ),
+          value_count: model.value_count || 0,
+          stats: model.stats,
+        };
+      }
+
+      function saveLocal() {
+        if (!model) return;
+        model.meta.updatedAt = new Date().toISOString();
+        localStorage.setItem("zamat.human_model", JSON.stringify(toJSON()));
+      }
+
+      function exportFile() {
+        const json = toJSON();
+        const blob = new Blob([JSON.stringify(json, null, 2)], {
+          type: "application/json",
+        });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "human_model.json";
+        a.click();
+        URL.revokeObjectURL(a.href);
+
+        if (hasExternalData) {
+          UI.logAIState(
+            t('log.human.exportMerged') || "📤 تم تصدير نموذج شامل يحتوي على بيانات الملف الخارجي + بيانات التعلم الجديدة"
+          );
+        } else {
+          UI.logAIState(
+            t('log.human.exportNew') || "📤 تم تصدير نموذج يحتوي فقط على بيانات التعلم الجديدة (لا يوجد ملف خارجي)"
+          );
+        }
+      }
+
+      function importFile(file) {
+        return new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => {
+            try {
+              const j = JSON.parse(r.result);
+              model = revive(j);
+              saveLocal();
+              resolve(model);
+            } catch (e) {
+              reject(e);
+            }
+          };
+          r.onerror = reject;
+          r.readAsText(file);
+        });
+      }
+
+      function predictBias() {
+        if (!model) {
+          model = defaultModel();
+        }
+        return {
+          logits_bias: model.policy_bias,
+          value_bias: model.value_bias,
+        };
+      }
+
+      function decay() {
+        const d = model.meta.decay || HUMAN_DECAY;
+        if (d <= 0) return;
+        for (let i = 0; i < model.policy_bias.length; i++) {
+          model.policy_bias[i] *= 1 - d;
+        }
+        model.value_bias *= 1 - d;
+      }
+
+      function updateFromGame(logger, winnerSide) {
+        const lr = model.meta.lr || HUMAN_LR;
+        const sign = winnerSide === BOT ? +1 : winnerSide === TOP ? -1 : 0;
+
+        if (
+          !model.policy_counts ||
+          model.policy_counts.length !== N_ACTIONS
+        ) {
+          model.policy_counts = new Float32Array(N_ACTIONS).fill(0);
+        }
+        if (typeof model.value_count !== "number") model.value_count = 0;
+
+        for (const [fr, to] of logger?.moves || []) {
+          if (fr === "END" && to === "END") continue;
+          const a =
+            rcToIdx(Number(fr.split(".")[0]), Number(fr.split(".")[1])) *
+            N_CELLS +
+            rcToIdx(Number(to.split(".")[0]), Number(to.split(".")[1]));
+          if (a >= 0 && a < N_ACTIONS) {
+            const n = model.policy_counts[a] || 0;
+            const x = lr * sign;
+            const newMean = (n * model.policy_bias[a] + x) / (n + 1);
+            model.policy_bias[a] = Math.max(
+              -HM_CAP_LOGIT,
+              Math.min(HM_CAP_LOGIT, newMean)
+            );
+            model.policy_counts[a] = Math.min(n + 1, HM_MAX_COUNT);
+          }
+        }
+
+        {
+          const nV = model.value_count || 0;
+          const xV = 0.25 * lr * sign;
+          const newVal = (nV * model.value_bias + xV) / (nV + 1);
+          model.value_bias = Math.max(
+            -HM_CAP_VALUE,
+            Math.min(HM_CAP_VALUE, newVal)
+          );
+          model.value_count = Math.min(nV + 1, HM_MAX_COUNT);
+        }
+
+        decay();
+
+        model.stats.updates = (model.stats.updates || 0) + 1;
+        model.stats.totalGames = (model.stats.totalGames || 0) + 1;
+        if (winnerSide === BOT)
+          model.stats.humanWins = (model.stats.humanWins || 0) + 1;
+        else if (winnerSide === TOP)
+          model.stats.aiWins = (model.stats.aiWins || 0) + 1;
+        else model.stats.draws = (model.stats.draws || 0) + 1;
+
+        saveLocal();
+      }
+
+      function clipBiases() {
+        for (let i = 0; i < model.policy_bias.length; i++) {
+          if (model.policy_bias[i] > HM_CAP_LOGIT)
+            model.policy_bias[i] = HM_CAP_LOGIT;
+          else if (model.policy_bias[i] < -HM_CAP_LOGIT)
+            model.policy_bias[i] = -HM_CAP_LOGIT;
+        }
+        if (model.value_bias > HM_CAP_VALUE) model.value_bias = HM_CAP_VALUE;
+        if (model.value_bias < -HM_CAP_VALUE)
+          model.value_bias = -HM_CAP_VALUE;
+      }
+
+      function mergeModels(otherJson) {
+        if (!otherJson) return;
+        const other = revive(otherJson);
+
+        if (other.n_actions !== N_ACTIONS) return;
+
+        for (let i = 0; i < N_ACTIONS; i++) {
+          const n1 = model.policy_counts?.[i] || 0;
+          const n2 = other.policy_counts?.[i] || 0;
+          if (n1 + n2 > 0) {
+            const merged =
+              (n1 * model.policy_bias[i] + n2 * other.policy_bias[i]) /
+              (n1 + n2);
+            model.policy_bias[i] = Math.max(
+              -HM_CAP_LOGIT,
+              Math.min(HM_CAP_LOGIT, merged)
+            );
+            model.policy_counts[i] = Math.min(n1 + n2, HM_MAX_COUNT);
+          }
+        }
+
+        const v1 = model.value_count || 0;
+        const v2 = other.value_count || 0;
+        if (v1 + v2 > 0) {
+          const mergedV =
+            (v1 * model.value_bias + v2 * other.value_bias) / (v1 + v2);
+          model.value_bias = Math.max(
+            -HM_CAP_VALUE,
+            Math.min(HM_CAP_VALUE, mergedV)
+          );
+          model.value_count = Math.min(v1 + v2, HM_MAX_COUNT);
+        }
+
+        model.stats.totalGames =
+          (model.stats.totalGames || 0) + (other.stats?.totalGames || 0);
+        model.stats.humanWins =
+          (model.stats.humanWins || 0) + (other.stats?.humanWins || 0);
+        model.stats.aiWins =
+          (model.stats.aiWins || 0) + (other.stats?.aiWins || 0);
+        model.stats.draws =
+          (model.stats.draws || 0) + (other.stats?.draws || 0);
+        model.stats.updates =
+          (model.stats.updates || 0) + (other.stats?.updates || 0);
+
+        model.meta.updatedAt = new Date().toISOString();
+        saveLocal();
+      }
+
+      return {
+        load,
+        predictBias,
+        updateFromGame,
+        exportFile,
+        importFile,
+        saveLocal,
+        mergeModels,
+      };
+    })();
+
+    const AI = (() => {
+      let session = null;
+      let readyFlag = false;
+      let failedFlag = false;
+
+      async function load() {
+        try {
+          const opts = {
+            executionProviders: ["wasm"],
+            graphOptimizationLevel: "all",
+          };
+          session = await ort.InferenceSession.create(
+            "models/model.onnx",
+            opts
+          );
+          readyFlag = true;
+          failedFlag = false;
+          setAIBadge("ready");
+          UI.logAIState(t("log.ai.loaded") || "تم تحميل ONNX");
+        } catch (e) {
+          failedFlag = true;
+          readyFlag = false;
+          setAIBadge("fail");
+          UI.logAIState(t("log.ai.loadFail") || "فشل تحميل ONNX");
+          console.error(e);
+        }
+      }
+      function setAIBadge(state, type = "onnx") {
+        const el =
+          (type === "onnx" ? qs("#onnxBadge") : qs("#jsonBadge")) ||
+          qs("#aiBadge");
+
+        if (!el) return;
+        if (state === "ready") {
+          el.textContent = "✅";
+          el.className = "badge ok";
+        } else if (state === "loading") {
+          el.textContent = "🔄";
+          el.className = "badge warn";
+        } else {
+          el.textContent = "❌";
+          el.className = "badge err";
+        }
+      }
+
+      function ready() {
+        return readyFlag;
+      }
+      function failed() {
+        return failedFlag;
+      }
+
+      function maskPolicy(logits, legal) {
+        const out = new Float32Array(logits.length);
+        let max = -1e9;
+        for (let i = 0; i < logits.length; i++) {
+          out[i] = legal[i] ? logits[i] : -1e9;
+          if (legal[i] && out[i] > max) max = out[i];
+        }
+        let sum = 0;
+        const probs = new Float32Array(logits.length);
+        for (let i = 0; i < logits.length; i++) {
+          if (legal[i]) {
+            const e = Math.exp(out[i] - max);
+            probs[i] = e;
+            sum += e;
+          } else probs[i] = 0;
+        }
+        if (sum > 0) {
+          for (let i = 0; i < probs.length; i++) probs[i] /= sum;
+        }
+        return probs;
+      }
+
+      function legalMask() {
+        const { mask } = legalActions();
+        const out = new Array(N_ACTIONS).fill(false);
+        for (let i = 0; i < N_ACTIONS; i++) out[i] = !!mask[i];
+        return out;
+      }
+
+      function blendPlayerData(pi) {
+        const key = stateHash();
+        const rec = Game.playerData.policy.get(key);
+        if (!rec) return pi;
+        const out = new Float32Array(pi.length);
+        let sum = 0;
+        for (let i = 0; i < pi.length; i++) {
+          const v = pi[i] + 0.08 * (rec.visitsByAction?.[i] || 0);
+          out[i] = v;
+          sum += v;
+        }
+        if (sum > 0) {
+          for (let i = 0; i < out.length; i++) out[i] /= sum;
+        }
+        return out;
+      }
+
+      function stateHash() {
+        let s = Game.player === TOP ? "T" : "B";
+        for (let r = 0; r < BOARD_N; r++) {
+          for (let c = 0; c < BOARD_N; c++) {
+            s += "," + Game.board[r][c];
+          }
+        }
+        return s;
+      }
+
+      async function policyValue() {
+        if (!session) throw new Error("No session");
+        const input = encodeState();
+        const feeds = { state: input };
+        const results = await session.run(feeds);
+        const logits = results["policy_value_logits"].data;
+        const value = results["value"].data[0];
+        return { logits, value };
+      }
+      async function policyValueHybrid() {
+        const { logits, value } = await policyValue();
+        await HumanModel.load();
+        const { logits_bias, value_bias } = HumanModel.predictBias();
+
+        const wOnnx = Game.settings.advanced?.w_policy_onnx ?? 1.0;
+        const wJson = Game.settings.advanced?.w_policy_json ?? 1.0;
+
+        const combined_logits = new Float32Array(logits.length);
+        for (let i = 0; i < logits.length; i++) {
+          combined_logits[i] = wOnnx * logits[i] + wJson * logits_bias[i];
+        }
+        const combined_value = wOnnx * value + wJson * value_bias;
+        return { logits: combined_logits, value: combined_value };
+      }
+
+
+      function selectActionFrom(pi) {
+        let bestI = -1,
+          bestP = -1;
+        for (let i = 0; i < pi.length; i++) {
+          if (pi[i] > bestP) {
+            bestP = pi[i];
+            bestI = i;
+          }
+        }
+        return bestI;
+      }
+
+      function capturesOnlyMask(baseMask) {
+        const out = baseMask.slice();
+        let anyCap = false;
+        for (let from = 0; from < N_CELLS; from++) {
+          const v = valueAt(from);
+          if (!v || pieceOwner(v) !== Game.player) continue;
+          for (let to = 0; to < N_CELLS; to++) {
+            const a = encodeAction(from, to);
+            if (!baseMask[a]) continue;
+            const [isCap] = classifyCapture(from, to);
+            if (!isCap) {
+              out[a] = false;
+            } else {
+              anyCap = true;
+            }
+          }
+        }
+        if (anyCap) return out;
+        return baseMask;
+      }
+
+      function longestCaptureOnlyMask(baseMask) {
+        const res = baseMask.slice();
+        const { Lmax, longestByPiece } = computeLongestForPlayer(Game.player);
+        if (Lmax <= 0) return baseMask;
+        for (let a = 0; a < N_ACTIONS; a++) {
+          if (!res[a] || a === ACTION_ENDCHAIN) continue;
+          const from = Math.floor(a / N_CELLS),
+            to = a % N_CELLS;
+          const [isCap] = classifyCapture(from, to);
+          if (!isCap) {
+            res[a] = false;
+            continue;
+          }
+          const keep =
+            longestByPiece.has(from) && longestByPiece.get(from) === Lmax;
+          if (!keep) res[a] = false;
+        }
+        return res;
+      }
+      async function decideAction() {
+        let logits;
+
+        if (Game.forcedEnabled && Game.forcedPly < 10) {
+          const step = Game.forcedSeq[Game.forcedPly];
+          const fr = rcToIdx(step[0][0], step[0][1]),
+            to = rcToIdx(step[1][0], step[1][1]);
+          return encodeAction(fr, to);
+        }
+
+        const { mask } = legalActions();
+        const legal = new Array(N_ACTIONS).fill(false);
+        for (let i = 0; i < N_ACTIONS; i++) legal[i] = !!mask[i];
+
+        let effMask = legal.slice();
+
+        if (Game.settings.aiCaptureMode === "mandatory") {
+          effMask = capturesOnlyMask(effMask);
+
+          const longest = computeLongestForPlayer(Game.player);
+          const Lmax = longest.Lmax;
+          if (Lmax > 0) {
+            const allowedFirst = new Set();
+            for (const fromIdx of longest.candidates) {
+              const fullPaths = longestPathsWithJumpsFrom(fromIdx, Lmax);
+              for (const o of fullPaths) {
+                const firstTo = o.path[0];
+                if (firstTo != null) {
+                  allowedFirst.add(encodeAction(fromIdx, firstTo));
+                }
+              }
+            }
+            const strict = effMask.slice();
+            for (let a = 0; a < N_ACTIONS; a++) {
+              if (!strict[a]) continue;
+              if (!allowedFirst.has(a)) strict[a] = false;
+            }
+            effMask = strict;
+          }
+
+          if (!session || failedFlag) {
+            let best = -1;
+            for (let a = 0; a < N_ACTIONS; a++) {
+              if (a !== ACTION_ENDCHAIN && effMask[a]) {
+                best = a;
+                break;
+              }
+            }
+            return best >= 0 ? best : ACTION_ENDCHAIN;
+          }
+
+          ({ logits } = await policyValueHybrid());
+          let pi = maskPolicy(logits, effMask);
+          pi = blendPlayerData(pi);
+          return selectActionFrom(pi);
+        }
+
+        const baseLegal = effMask.slice();
+        ({ logits } = await policyValueHybrid());
+        const legalArr = baseLegal.map((v) => !!v);
+        const piAll = maskPolicy(logits, legalArr);
+
+        const capOnly = capturesOnlyMask(baseLegal);
+        const piCap = maskPolicy(
+          logits,
+          capOnly.map((v) => !!v)
+        );
+
+        let bestNonCap = 0,
+          bestCap = 0;
+        for (let i = 0; i < N_ACTIONS; i++) {
+          if (i === ACTION_ENDCHAIN) continue;
+          if (legalArr[i] && !capOnly[i])
+            bestNonCap = Math.max(bestNonCap, piAll[i]);
+          if (capOnly[i]) bestCap = Math.max(bestCap, piCap[i]);
+        }
+
+        const margin = 1.02;
+        const ignoreProb = 0.05 + Math.random() * 0.2;
+        const canIgnore =
+          bestNonCap > bestCap * margin && Math.random() < ignoreProb;
+
+        if (!canIgnore) {
+          let strict = capturesOnlyMask(baseLegal);
+          const longest = computeLongestForPlayer(Game.player);
+          const Lmax = longest.Lmax;
+          if (Lmax > 0) {
+            const allowedFirst = new Set();
+            for (const fromIdx of longest.candidates) {
+              const fullPaths = longestPathsWithJumpsFrom(fromIdx, Lmax);
+              for (const o of fullPaths) {
+                const firstTo = o.path[0];
+                if (firstTo != null) {
+                  allowedFirst.add(encodeAction(fromIdx, firstTo));
+                }
+              }
+            }
+            for (let a = 0; a < N_ACTIONS; a++) {
+              if (!strict[a]) continue;
+              if (!allowedFirst.has(a)) strict[a] = false;
+            }
+          }
+          effMask = strict;
+        } else {
+          effMask = baseLegal;
+        }
+
+        if (!session || failedFlag) {
+          let caps = [],
+            steps = [];
+          for (let a = 0; a < N_ACTIONS; a++) {
+            if (!effMask[a] || a === ACTION_ENDCHAIN) continue;
+            const from = Math.floor(a / N_CELLS),
+              to = a % N_CELLS;
+            const [isCap] = classifyCapture(from, to);
+            (isCap ? caps : steps).push(a);
+          }
+          return caps[0] ?? steps[0] ?? ACTION_ENDCHAIN;
+        }
+
+        ({ logits } = await policyValueHybrid());
+        let pi = maskPolicy(logits, effMask);
+        pi = blendPlayerData(pi);
+
+        // If advanced settings exist, delegate to hybrid layer
+        if (Game.settings?.advanced) {
+          // optional micro-wait on critical states (bounded)
+          if (detectCriticalState(Game.player)) {
+            const extra = clamp(Game.settings.advanced.timeBoostCriticalMs || 0, 0, Game.settings.advanced.timeCapMs || 4000);
+            if (extra > 0) {
+              await new Promise(res => setTimeout(res, Math.min(extra, 400)));
+            }
+          }
+          const picked = await rescoreAndPick(Game.player, pi, effMask);
+          return picked;
+        }
+
+        // Fallback to old selection if advanced not present
+        const sims = Math.max(
+          16,
+          Math.min(96, Math.floor(Game.settings.thinkTimeMs / 80) || 32)
+        );
+        const visits = new Float32Array(N_ACTIONS);
+        for (let s = 0; s < sims; s++) {
+          const a = sampleFrom(pi);
+          if (a >= 0) visits[a] += 1;
+        }
+        let best = -1, bestV = -1;
+        for (let i = 0; i < N_ACTIONS; i++) {
+          if (!effMask[i]) continue;
+          if (visits[i] > bestV) {
+            bestV = visits[i];
+            best = i;
+          }
+        }
+        if (best < 0) best = selectActionFrom(pi);
+        return best;
+
+      }
+
+      function sampleFrom(pi) {
+        let sum = 0;
+        for (let i = 0; i < pi.length; i++) sum += pi[i];
+        if (sum <= 1e-9) return -1;
+        let r = Math.random() * sum;
+        for (let i = 0; i < pi.length; i++) {
+          r -= pi[i];
+          if (r <= 0) return i;
+        }
+        return -1;
+      }
+
+      async function play() {
+        if (Game.gameOver || Game.awaitingPenalty) return;
+        if (Game.player !== aiSide()) return;
+        const a = await decideAction();
+        if (a === ACTION_ENDCHAIN) {
+          finishAIChainEndTurn();
+          return;
+        }
+        const from = Math.floor(a / N_CELLS),
+          to = a % N_CELLS;
+        const [isCap, jumped] = classifyCapture(from, to);
+        if (isCap) {
+          const preSnap = snapshotState();
+
+          applyMove(from, to, true, jumped);
+          if (!Turn.ctx) Turn.start();
+          Turn.beginCapture(from);
+          Turn.recordCapture();
+          Game.inChain = true;
+          Game.chainPos = to;
+          Game.lastMovedTo = to;
+          Visual.setLastMove(from, to);
+          UI.log(
+            `${nowHHMMSS()} ${t("log.jump") || "قفز"}: ${rcStr(from)}→${rcStr(to)}، ${t("log.remove") || "إزالة"} ${rcStr(
+              jumped
+            )} (${sideLabel(aiSide())})`
+          );
+
+
+          if (Game.settings.aiCaptureMode === "mandatory") {
+            const keep = snapshotState();
+            restoreSnapshot(preSnap);
+            const longest0 = computeLongestForPlayer(Game.player);
+            const Lmax0 = longest0.longestByPiece.get(from) || 0;
+            const fullPaths0 =
+              Lmax0 > 0 ? longestPathsWithJumpsFrom(from, Lmax0) : [];
+            let chosen0 =
+              fullPaths0.find(
+                (p) => p.path && p.path.length && p.path[0] === to
+              ) ||
+              fullPaths0.find((p) => p.path && p.path[0] === to) ||
+              null;
+            restoreSnapshot(keep);
+
+            if (chosen0) {
+              let cur = to;
+              for (let k = 1; k < chosen0.path.length; k++) {
+                const nxt = chosen0.path[k];
+                const [ic2, jp2] = classifyCapture(cur, nxt);
+                if (!ic2 || jp2 == null) break;
+                applyMove(cur, nxt, true, jp2);
+                Turn.recordCapture();
+                Game.chainPos = nxt;
+                Game.lastMovedTo = nxt;
+                Visual.setLastMove(cur, nxt);
+                cur = nxt;
+              }
+            }
+            finishAIChainEndTurn();
+          } else {
+            const caps = generateCapturesFrom(to, valueAt(to));
+            if (caps.length === 0) {
+              finishAIChainEndTurn();
+            } else {
+              let guard = 12;
+              while (guard-- > 0) {
+                const { mask } = legalActions();
+                const options = [];
+                for (let i = 0; i < N_ACTIONS; i++) {
+                  if (!mask[i] || i === ACTION_ENDCHAIN) continue;
+                  const fr = Math.floor(i / N_CELLS),
+                    tt = i % N_CELLS;
+                  if (fr !== Game.chainPos) continue;
+                  const [ic] = classifyCapture(fr, tt);
+                  if (ic) options.push(i);
+                }
+                if (!options.length) break;
+                const next =
+                  options[Math.floor(Math.random() * options.length)];
+                const nf = Math.floor(next / N_CELLS),
+                  nt = next % N_CELLS;
+                const [ic, jp] = classifyCapture(nf, nt);
+                if (!ic) break;
+                applyMove(nf, nt, true, jp);
+                Turn.recordCapture();
+                Game.chainPos = nt;
+                Game.lastMovedTo = nt;
+                Visual.setLastMove(nf, nt);
+              }
+              finishAIChainEndTurn();
+            }
+          }
+        } else {
+          applyMove(from, to, false, null);
+          Visual.setLastMove(from, to);
+          UI.log(
+            `${nowHHMMSS()} ${t("log.move") || "حركة"}: ${rcStr(from)}→${rcStr(to)} (${sideLabel(
+              aiSide()
+            )})`
+          );
+
+
+          Turn.finishTurnAndSoufla();
+        }
+        Visual.draw();
+      }
+      function finishAIChainEndTurn() {
+        maybeQueueDeferredPromotion(Game.chainPos ?? Game.lastMovedTo);
+
+        Game.inChain = false;
+        Game.chainPos = null;
+        Turn.finishTurnAndSoufla();
+        if (
+          !Game.awaitingPenalty &&
+          !Game.gameOver &&
+          Game.player === aiSide() &&
+          !(Game.forcedEnabled && Game.forcedPly < 10)
+        ) {
+          AI.scheduleMove();
+        }
+      }
+
+      async function computeHint() {
+        if (!readyFlag || failedFlag) return null;
+        const { mask } = legalActions();
+        const { logits } = await policyValueHybrid();
+        const legal = new Array(N_ACTIONS).fill(false);
+        for (let i = 0; i < N_ACTIONS; i++) legal[i] = !!mask[i];
+        let pi = maskPolicy(logits, legal);
+        pi = blendPlayerData(pi);
+        let a = -1,
+          best = -1;
+        for (let i = 0; i < N_ACTIONS; i++) {
+          if (pi[i] > best) {
+            best = pi[i];
+            a = i;
+          }
+        }
+        if (a < 0 || a === ACTION_ENDCHAIN) return null;
+        const from = Math.floor(a / N_CELLS),
+          to = a % N_CELLS;
+        const [isCap] = classifyCapture(from, to);
+        const path = [to];
+        if (isCap) {
+        }
+        return { from, path };
+      }
+
+      async function pickSouflaDecision(pending) {
+        let best = null;
+        let bestVal = -Infinity;
+
+        const keepOuter = snapshotState();
+
+        for (const decision of pending.options) {
+          const keep = snapshotState();
+          try {
+            restoreSnapshot(pending.turnStartSnapshot);
+
+            if (decision.kind === "remove") {
+              let removeIdx = decision.offenderIdx;
+              if (
+                pending.startedFrom === decision.offenderIdx &&
+                pending.lastPieceIdx != null
+              ) {
+                removeIdx = pending.lastPieceIdx;
+              }
+              setValueAt(removeIdx, 0);
+            } else if (decision.kind === "force") {
+              const from = decision.offenderIdx;
+              let cur = from;
+              for (const to of decision.path || []) {
+                const [isCap, jumped] = classifyCapture(cur, to);
+                if (!isCap || jumped == null) break;
+                applyMove(cur, to, true, jumped);
+                cur = to;
+              }
+            }
+
+            Game.player = pending.penalizer;
+
+            let val = 0;
+            try {
+              const { value } = await policyValueHybrid();
+              val = value;
+            } catch {
+              let my = 0,
+                opp = 0;
+              for (let r = 0; r < BOARD_N; r++) {
+                for (let c = 0; c < BOARD_N; c++) {
+                  const v = Game.board[r][c];
+                  if (!v) continue;
+                  const owner = pieceOwner(v);
+                  const kind = pieceKind(v);
+                  const w = kind === KING ? 3 : 1;
+                  if (owner === Game.player) my += w;
+                  else opp += w;
+                }
+              }
+              val = my - opp;
+            }
+
+            if (val > bestVal) {
+              bestVal = val;
+              best = decision;
+            }
+          } finally {
+            restoreSnapshot(keep);
+          }
+        }
+
+        restoreSnapshot(keepOuter);
+        return best || pending.options[0];
+      }
+
+      function scheduleMove() {
+        const base = Game.settings.thinkTimeMs || 0;
+        let extra = 0;
+        if (Game.settings?.advanced && detectCriticalState(Game.player)) {
+          extra = Game.settings.advanced.timeBoostCriticalMs || 0;
+        }
+        const total = clamp(base + extra, 0, Game.settings?.advanced?.timeCapMs || 4000);
+        if (total <= 0) play();
+        else setTimeout(play, total);
+      }
+
+      function updateJSONBadge(state) {
+        setAIBadge(state, "json");
+      }
+
+      return {
+        load,
+        ready,
+        failed,
+        scheduleMove,
+        computeHint,
+        pickSouflaDecision,
+        updateJSONBadge,
+      };
+    })();
+
+    // ============================================================
+    // 9) Save/Resume/Undo/Soufla buttons and online stub
+    // ============================================================
+
+    function confirmUndo() {
+      if (Game.forcedEnabled && Game.forcedPly < 10) {
+        Modal.open({
+          title: t("modals.undo.notAllowedTitle") || "التراجع غير مسموح",
+          body: `<div>${t("modals.undo.notAllowedBody") || "لا يمكن التراجع أثناء النقلات الافتتاحية الإجبارية"}</div>`,
+          buttons: [
+            {
+              label: t("modals.close") || "إغلاق",
+              className: "primary",
+              onClick: () => Modal.close(),
+            },
+          ],
+        });
+
+        return;
+      }
+
+      if (Game.inChain || Game.awaitingPenalty) {
+        Modal.open({
+          title: t("modals.undo.title") || "التراجع",
+          body: `<div>${t("ui.noUndo") || "لا يوجد تراجع متاح"}</div>`,
+          buttons: [
+            {
+              label: t("modals.close") || "إغلاق",
+              className: "primary",
+              onClick: () => Modal.close(),
+            },
+          ],
+        });
+        return;
+      }
+
+      if (!Game.history.length) {
+        Modal.open({
+          title: t("modals.undo.title") || "التراجع",
+          body: `<div>${t("ui.noUndo") || "لا توجد حركة سابقة للتراجع عنها"
+            }</div>`,
+          buttons: [
+            {
+              label: t("modals.close") || "إغلاق",
+              className: "primary",
+              onClick: () => Modal.close(),
+            },
+          ],
+        });
+        return;
+      }
+
+      Modal.open({
+        title: t("modals.undo.title") || "تأكيد التراجع",
+        body: `<div>${t("modals.undo.confirm") || "هل تريد التراجع عن آخر نقلة؟"
+          }</div>`,
+        buttons: [
+          {
+            label: t("modals.yes") || "نعم",
+            className: "ok",
+            onClick: () => {
+              const snap = Game.history.pop();
+              restoreSnapshot(snap);
+
+              Turn.start();
+              try {
+                Game.killTimer.hardStop();
+                qs("#btnEndKill").disabled = true;
+              } catch { }
+
+              Visual.setLastMove(null, null);
+
+              Visual.setUndoMove(snap.lastMovedTo, snap.lastMovedFrom);
+              Visual.draw();
+
+              if (
+                !Game.gameOver &&
+                !Game.awaitingPenalty &&
+                Game.player === aiSide() &&
+                !(Game.forcedEnabled && Game.forcedPly < 10)
+              ) {
+                setTimeout(() => AI.scheduleMove(), 4000);
+              }
+
+              Modal.close();
+            },
+          },
+          {
+            label: t("modals.no") || "لا",
+            className: "ghost",
+            onClick: () => Modal.close(),
+          },
+        ],
+      });
+    }
+
+    function saveGame() {
+      const data = {
+        board: Game.board,
+        player: Game.player,
+        inChain: Game.inChain,
+        chainPos: Game.chainPos,
+        lastMovedTo: Game.lastMovedTo,
+        moveCount: Game.moveCount,
+        forcedEnabled: Game.forcedEnabled,
+        forcedPly: Game.forcedPly,
+        settings: Game.settings,
+      };
+      localStorage.setItem("zamat.save", JSON.stringify(data));
+      Modal.open({
+        title: t("buttons.save") || "حفظ لعبة",
+        body: `<div>${t("log.save.done") || "تم حفظ الوضعية الحالية للعبة"
+          }</div>`,
+        buttons: [
+          {
+            label: t("modals.close") || "إغلاق",
+            className: "primary",
+            onClick: () => Modal.close(),
+          },
+        ],
+      });
+    }
+
+    function resumeGame() {
+      const raw = localStorage.getItem("zamat.save");
+      if (!raw) {
+        Modal.open({
+          title: t("buttons.resume") || "استئناف لعبة",
+          body: `<div>${t("log.save.none") || "لا توجد لعبة محفوظة لاستئنافها"
+            }</div>`,
+          buttons: [
+            {
+              label: t("modals.close") || "إغلاق",
+              className: "primary",
+              onClick: () => Modal.close(),
+            },
+          ],
+        });
+        return;
+      }
+
+      try {
+        const data = JSON.parse(raw);
+        Game.board = data.board;
+        Game.player = data.player;
+        Game.inChain = data.inChain;
+        Game.chainPos = data.chainPos;
+        Game.lastMovedTo = data.lastMovedTo;
+        Game.moveCount = data.moveCount;
+        Game.forcedEnabled = data.forcedEnabled;
+        Game.forcedPly = data.forcedPly;
+        Game.settings = data.settings;
+        applyTheme(Game.settings.theme);
+        Visual.setShowCoords(Game.settings.showCoords);
+        UI.updateAll();
+        Modal.open({
+          title: t("buttons.resume") || "استئناف لعبة",
+          body: `<div>${t("log.save.resumed") || "تم استئناف اللعبة"}</div>`,
+          buttons: [
+            {
+              label: t("modals.close") || "إغلاق",
+              className: "primary",
+              onClick: () => Modal.close(),
+            },
+          ],
+        });
+      } catch (e) {
+        console.error(e);
+        Modal.open({
+          title: t("buttons.resume") || "استئناف لعبة",
+          body: `<div>${t("log.save.error") || "تعذر استئناف اللعبة"}</div>`,
+          buttons: [
+            {
+              label: t("modals.close") || "إغلاق",
+              className: "primary",
+              onClick: () => Modal.close(),
+            },
+          ],
+        });
+      }
+    }
+
+    function souflaPressed() {
+      if (Game.availableSouflaForHuman) {
+        Game.awaitingPenalty = true;
+        Game.souflaPending = Game.availableSouflaForHuman;
+        UI.showSouflaModal(Game.souflaPending);
+        return;
+      }
+
+      Modal.open({
+        title: t("modals.soufla.header") || "السوفلة",
+        body: `<div>${t("modals.soufla.none") ||
+          "لا توجد سوفلة في حركة الحاسوب الأخيرة. لقد قام الحاسوب بالنقلة القانونية."
+          }</div>`,
+        buttons: [
+          {
+            label: t("modals.close") || "إغلاق",
+            className: "primary",
+            onClick: () => Modal.close(),
+          },
+        ],
+      });
+    }
+
+    // ============================================================
+    // 10) Event bindings
+    // ============================================================
+
+    function bindUI() {
+      qs("#btnSoufla").addEventListener("click", souflaPressed);
+      qs("#btnUndo").addEventListener("click", confirmUndo);
+      qs("#btnHint").addEventListener("click", () => UI.showHint());
+      qs("#btnRules").addEventListener("click", () => UI.showRulesModal());
+      qs("#btnSettings").addEventListener("click", () =>
+        UI.showSettingsModal()
+      );
+      qs("#btnNew").addEventListener("click", () => {
+        Modal.open({
+          title: t("modals.newGame.title") || "بدء لعبة جديدة",
+          body: `<div>${t("modals.newGame.confirm") ||
+            "هل أنت متأكد من إنهاء اللعبة الحالية وبدء جديدة؟"
+            }</div>`,
+          buttons: [
+            {
+              label: t("modals.yes") || "نعم",
+              className: "ok",
+              onClick: () => {
+                setupInitialBoard();
+                Visual.clearCapturedOrder();
+                Visual.clearSouflaFX();
+                Visual.setHighlightCells([]);
+                Visual.setHintPath(null, null);
+                Visual.clearForcedOpeningArrow();
+                Visual.setLastMove(null, null);
+                Visual.setUndoMove(null, null);
+
+                Visual.draw();
+                Modal.close();
+              },
+            },
+            {
+              label: t("modals.no") || "لا",
+              className: "ghost",
+              onClick: () => Modal.close(),
+            },
+          ],
+        });
+      });
+
+      qs("#btnSave").addEventListener("click", saveGame);
+      qs("#btnResume").addEventListener("click", resumeGame);
+      qs("#btnEndKill").addEventListener("click", endKillPressed);
+      qs("#btnExportHuman").addEventListener("click", () => {
+        try {
+          HumanModel.exportFile();
+          toast(t("log.human.exported") || "تم تصدير نموذج JSON.");
+        } catch (e) {
+          Modal.open({
+            title: t("modals.error") || "خطأ",
+            body: `<div>${t("log.human.exportFail") || "تعذر تصدير نموذج JSON."
+              }</div>`,
+            buttons: [
+              {
+                label: t("modals.close") || "إغلاق",
+                className: "primary",
+                onClick: () => Modal.close(),
+              },
+            ],
+          });
+        }
+      });
+
+      qs("#board").addEventListener("click", Input.onBoardClick);
+      qs("#btnOnline").addEventListener("click", () => {
+        const available =
+          (window.Online && typeof window.Online.start === "function") ||
+          typeof window.startOnline === "function";
+        if (!available) {
+          Modal.open({
+            title:
+              t("modals.online.unavailableTitle") || "اللعب عبر الإنترنت",
+            body: `<div>${t("modals.online.unavailableBody") ||
+              "هذه الميزة غير متاحة حاليا. جاري العمل على تطويرها"
+              }</div>`,
+            buttons: [
+              {
+                label: t("modals.close") || "إغلاق",
+                className: "primary",
+                onClick: () => Modal.close(),
+              },
+            ],
+          });
+          return;
+        }
+        try {
+          (window.Online?.start || window.startOnline)();
+        } catch (e) {
+          Modal.open({
+            title:
+              t("modals.online.unavailableTitle") || "اللعب عبر الإنترنت",
+            body: `<div>${t("modals.online.unavailableBody") ||
+              "هذه الميزة غير متاحة حاليا"
+              }</div>`,
+            buttons: [
+              {
+                label: t("modals.close") || "إغلاق",
+                className: "primary",
+                onClick: () => Modal.close(),
+              },
+            ],
+          });
+        }
+      });
+    }
+
+    // ============================================================
+    // 11) Init
+    // ============================================================
+
+    function init() {
+      applyTheme(AppPref.getTheme());
+      initI18n();
+      bindUI();
+      setupInitialBoard();
+
+      AI.load();
+
+      HumanModel.load().catch((err) => {
+        console.error("JSON model load failed", err);
+      });
+
+      Visual.draw();
+      Turn.start();
+      scheduleForcedOpeningAutoIfNeeded();
+
+      if (
+        !Game.gameOver &&
+        Game.player === aiSide() &&
+        !(Game.forcedEnabled && Game.forcedPly < 10)
+      ) {
+        AI.scheduleMove();
+      }
+    }
+
+    window.addEventListener("load", init);
+  </script>
+</body>
+
+</html>
